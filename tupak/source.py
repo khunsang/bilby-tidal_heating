@@ -39,6 +39,11 @@ def lal_binary_black_hole(
     frequency_maximum = frequency_array[-1]
     delta_frequency = frequency_array[1] - frequency_array[0]
 
+    signal_duration = lalsim.SimInspiralChirpTimeBound(frequency_minimum, mass_1, mass_2, spin_1z, spin_2z)
+
+    if signal_duration > 1 / delta_frequency:
+        return None
+
     hplus, hcross = lalsim.SimInspiralChooseFDWaveform(
         mass_1, mass_2, spin_1x, spin_1y, spin_1z, spin_2x, spin_2y,
         spin_2z, luminosity_distance, iota, phase,
