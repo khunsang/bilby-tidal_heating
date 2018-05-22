@@ -283,3 +283,49 @@ class HyperparameterLikelihood(Likelihood):
                 np.sum(self.hyper_prior.prob(samp) /
                        self.run_prior.prob(samp)))
         return np.sum(np.log(L))
+
+
+class HyperparameterLikelihoodDependent(Likelihood):
+    """ A likelihood for infering hyperparameter posterior distributions
+
+    Note - this extension allows for a dependent set of variables. I'm not
+    sure whether this can be done in HyperparameterLikelihood yet or not so
+    just trialing here.
+
+    See Eq. (1) of https://arxiv.org/abs/1801.02699 for a definition.
+
+    Parameters
+    ----------
+    samples: list
+        An N-dimensional list of individual sets of samples. Each set may have
+        a different size.
+    hyper_prior: `tupak.prior.Prior`
+        A prior distribution with a `parameters` argument pointing to the
+        hyperparameters to infer from the samples. These may need to be
+        initialized to any arbitrary value, but this will not effect the
+        result.
+    run_prior: `tupak.prior.Prior`
+        The prior distribution used in the inidivudal inferences which resulted
+        in the set of samples.
+
+    """
+
+    def __init__(self, samples, hyper_prior, run_prior):
+        Likelihood.__init__(self, parameters=hyper_prior.__dict__)
+        self.samples = samples
+        self.hyper_prior = hyper_prior
+        self.run_prior = run_prior
+        self.parameters = hyper_prior.__dict__
+        self.log_likelihood = self.log_likelihood_using_prob
+
+    def log_likelihood_using_lnprob(self):
+        raise NotImplementedError()
+
+    def log_likelihood_using_prob(self):
+        L = []
+        self.hyper_prior.__dict__.update(self.parameters)
+        for i, samp in enumerate(self.samples):
+            L.append(
+                np.sum(self.hyper_prior.prob(samp, i) /
+                       self.run_prior.prob(samp)))
+        return np.sum(np.log(L))
