@@ -1,0 +1,23 @@
+Welcome to tupak's documentation!
+=================================
+
+.. automodule:: tupak
+    :members:
+
+.. toctree::
+   :maxdepth: 3
+   :caption: Contents:
+
+   basics-of-parameter-estimation
+   tupak-output
+   likelihood
+   samplers
+   writing-documentation
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`

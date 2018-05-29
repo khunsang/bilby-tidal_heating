@@ -301,29 +301,15 @@ class TruncatedGaussian(Prior):
 
 class Interped(Prior):
 
-    def __init__(self, xx, yy, minimum=None, maximum=None, name=None, latex_label=None):
+    def __init__(self, xx, yy, minimum=np.nan, maximum=np.nan, name=None, latex_label=None):
         """Initialise object from arrays of x and y=p(x)"""
-        Prior.__init__(self, name, latex_label)
-        all_interpolated = interp1d(x=xx, y=yy, bounds_error=False, fill_value=0)
-        if minimum is None or minimum < min(xx):
-            self.minimum = min(xx)
-        else:
-            self.minimum = minimum
-        if maximum is None or maximum > max(xx):
-            self.maximum = max(xx)
-        else:
-            self.maximum = maximum
-        self.xx = np.linspace(self.minimum, self.maximum, len(xx))
-        self.yy = all_interpolated(self.xx)
-        if np.trapz(self.yy, self.xx) != 1:
-            logging.info('Supplied PDF for {} is not normalised, normalising.'.format(self.name))
-        self.yy /= np.trapz(self.yy, self.xx)
-        self.YY = cumtrapz(self.yy, self.xx, initial=0)
-        # Need last element of cumulative distribution to be exactly one.
-        self.YY[-1] = 1
-        self.probability_density = interp1d(x=self.xx, y=self.yy, bounds_error=False, fill_value=0)
-        self.cumulative_distribution = interp1d(x=self.xx, y=self.YY, bounds_error=False, fill_value=0)
-        self.inverse_cumulative_distribution = interp1d(x=self.YY, y=self.xx, bounds_error=True)
+        self.xx = xx
+        self.yy = yy
+        self.all_interpolated = interp1d(x=xx, y=yy, bounds_error=False, fill_value=0)
+        Prior.__init__(self, name, latex_label,
+                       minimum=np.nanmax(np.array((min(xx), minimum))),
+                       maximum=np.nanmin(np.array((max(xx), maximum))))
+        self.__initialize_attributes()
 
     def prob(self, val):
         """Return the prior probability of val"""
@@ -344,8 +330,45 @@ class Interped(Prior):
     def __repr__(self):
         prior_name = self.__class__.__name__
         prior_args = ', '.join(
-            ['{}={}'.format(key, self.__dict__[key]) for key in ['xx', 'yy', '_Prior__latex_label']])
+            ['{}={}'.format(name, self.__dict__[key]) for key, name in zip(['xx', 'yy', 'name', '_Prior__latex_label'],
+                                                                          ['xx', 'yy', 'name', 'latex_label'])])
         return "{}({})".format(prior_name, prior_args)
+
+    @property
+    def minimum(self):
+        return self.__minimum
+
+    @minimum.setter
+    def minimum(self, minimum):
+        self.__minimum = minimum
+        if '_Interped__maximum' in self.__dict__ and self.__maximum < np.inf:
+            self.__update_instance()
+
+    @property
+    def maximum(self):
+        return self.__maximum
+
+    @maximum.setter
+    def maximum(self, maximum):
+        self.__maximum = maximum
+        if '_Interped__minimum' in self.__dict__ and self.__minimum < np.inf:
+            self.__update_instance()
+
+    def __update_instance(self):
+        self.xx = np.linspace(self.minimum, self.maximum, len(self.xx))
+        self.yy = self.all_interpolated(self.xx)
+        self.__initialize_attributes()
+
+    def __initialize_attributes(self):
+        if np.trapz(self.yy, self.xx) != 1:
+            logging.info('Supplied PDF for {} is not normalised, normalising.'.format(self.name))
+        self.yy /= np.trapz(self.yy, self.xx)
+        self.YY = cumtrapz(self.yy, self.xx, initial=0)
+        # Need last element of cumulative distribution to be exactly one.
+        self.YY[-1] = 1
+        self.probability_density = interp1d(x=self.xx, y=self.yy, bounds_error=False, fill_value=0)
+        self.cumulative_distribution = interp1d(x=self.xx, y=self.YY, bounds_error=False, fill_value=0)
+        self.inverse_cumulative_distribution = interp1d(x=self.YY, y=self.xx, bounds_error=True)
 
 
 class FromFile(Interped):
@@ -365,7 +388,9 @@ class FromFile(Interped):
     def __repr__(self):
         prior_name = self.__class__.__name__
         prior_args = ', '.join(
-            ['{}={}'.format(key, self.__dict__[key]) for key in ['id', 'minimum', 'maximum', '_Prior__latex_label']])
+            ['{}={}'.format(name, self.__dict__[key])
+             for key, name in zip(['id', '_Interped__minimum', '_Interped__maximum', 'name', '_Prior__latex_label'],
+                                  ['id', 'minimum', 'maximum', 'name', 'latex_label'])])
         return "{}({})".format(prior_name, prior_args)
 
 
@@ -422,27 +447,6 @@ def create_default_prior(name):
             "No default prior found for variable {}.".format(name))
         prior = None
     return prior
-
-
-def parse_floats_to_fixed_priors(old_parameters):
-    parameters = old_parameters.copy()
-    for key in parameters:
-        if type(parameters[key]) is not float and type(parameters[key]) is not int \
-                and type(parameters[key]) is not Prior:
-            logging.info("Expected parameter " + str(key) + " to be a float or int but was "
-                         + str(type(parameters[key])) + " instead. Will not be converted.")
-            continue
-        elif type(parameters[key]) is Prior:
-            continue
-        parameters[key] = DeltaFunction(name=key, latex_label=None, peak=old_parameters[key])
-    return parameters
-
-
-def parse_keys_to_parameters(keys):
-    parameters = {}
-    for key in keys:
-        parameters[key] = create_default_prior(key)
-    return parameters
 
 
 def fill_priors(prior, likelihood):
@@ -553,7 +557,7 @@ def test_redundancy(key, prior):
     return redundant
 
 
-def write_priors_to_file(priors, outdir):
+def write_priors_to_file(priors, outdir, label):
     """
     Write the prior distribution to file.
 
@@ -561,13 +565,12 @@ def write_priors_to_file(priors, outdir):
     ----------
     priors: dict
         priors used
-    outdir: str
-        output directory
+    outdir, label: str
+        output directory and label
     """
-    if outdir[-1] != "/":
-        outdir += "/"
-    prior_file = outdir + "prior.txt"
-    logging.info("Writing priors to {}".format(prior_file))
+
+    prior_file = os.path.join(outdir, "{}_prior.txt".format(label))
+    logging.debug("Writing priors to {}".format(prior_file))
     with open(prior_file, "w") as outfile:
         for key in priors:
             outfile.write("prior['{}'] = {}\n".format(key, priors[key]))
