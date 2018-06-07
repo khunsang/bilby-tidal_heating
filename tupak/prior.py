@@ -70,10 +70,20 @@ class Prior(object):
             raise ValueError("Number to be rescaled should be in [0, 1]")
 
     def __repr__(self):
+        return self._subclass_repr_helper()
+
+    def _subclass_repr_helper(self, subclass_args=list()):
         prior_name = self.__class__.__name__
-        prior_args = ', '.join(
-            ['{}={}'.format(k, v) for k, v in self.__dict__.items()])
-        return "{}({})".format(prior_name, prior_args)
+        args = ['name', 'latex_label', 'minimum', 'maximum']
+        args.extend(subclass_args)
+
+        property_names = [p for p in dir(self.__class__) if isinstance(getattr(self.__class__, p), property)]
+        dict_with_properties = self.__dict__.copy()
+        for key in property_names:
+            dict_with_properties[key] = getattr(self, key)
+
+        args = ', '.join(['{}={}'.format(key, repr(dict_with_properties[key])) for key in args])
+        return "{}({})".format(prior_name, args)
 
     @property
     def is_fixed(self):
@@ -91,25 +101,45 @@ class Prior(object):
             self.__latex_label = latex_label
 
     @property
+    def minimum(self):
+        return self.__minimum
+
+    @minimum.setter
+    def minimum(self, minimum):
+        self.__minimum = minimum
+
+    @property
+    def maximum(self):
+        return self.__maximum
+
+    @maximum.setter
+    def maximum(self, maximum):
+        self.__maximum = maximum
+
+    @property
     def __default_latex_label(self):
         default_labels = {
             'mass_1': '$m_1$',
             'mass_2': '$m_2$',
-            'mchirp': '$\mathcal{M}$',
-            'q': '$q$',
+            'total_mass': '$M$',
+            'chirp_mass': '$\mathcal{M}$',
+            'mass_ratio': '$q$',
+            'symmetric_mass_ratio': '$\eta$',
             'a_1': '$a_1$',
             'a_2': '$a_2$',
             'tilt_1': '$\\theta_1$',
             'tilt_2': '$\\theta_2$',
+            'cos_tilt_1': '$\cos\\theta_1$',
+            'cos_tilt_2': '$\cos\\theta_2$',
             'phi_12': '$\Delta\phi$',
             'phi_jl': '$\phi_{JL}$',
             'luminosity_distance': '$d_L$',
             'dec': '$\mathrm{DEC}$',
             'ra': '$\mathrm{RA}$',
             'iota': '$\iota$',
+            'cos_iota': '$\cos\iota$',
             'psi': '$\psi$',
             'phase': '$\phi$',
-            'tc': '$t_c$',
             'geocent_time': '$t_c$'
         }
         if self.name in default_labels.keys():
@@ -117,23 +147,6 @@ class Prior(object):
         else:
             label = self.name
         return label
-
-
-class Uniform(Prior):
-    """Uniform prior"""
-
-    def __init__(self, minimum, maximum, name=None, latex_label=None):
-        Prior.__init__(self, name, latex_label, minimum, maximum)
-        self.support = maximum - minimum
-
-    def rescale(self, val):
-        Prior.test_valid_for_rescaling(val)
-        return self.minimum + val * self.support
-
-    def prob(self, val):
-        """Return the prior probability of val"""
-        in_prior = (val >= self.minimum) & (val <= self.maximum)
-        return 1 / self.support * in_prior
 
 
 class DeltaFunction(Prior):
@@ -154,6 +167,9 @@ class DeltaFunction(Prior):
             return np.inf
         else:
             return 0
+
+    def __repr__(self):
+        return Prior._subclass_repr_helper(self, subclass_args=['peak'])
 
 
 class PowerLaw(Prior):
@@ -186,6 +202,39 @@ class PowerLaw(Prior):
             return np.nan_to_num(val ** self.alpha * (1 + self.alpha) / (self.maximum ** (1 + self.alpha)
                                                                          - self.minimum ** (1 + self.alpha))) * in_prior
 
+    def lnprob(self, val):
+        in_prior = (val >= self.minimum) & (val <= self.maximum)
+        normalising = (1 + self.alpha) / (self.maximum ** (1 + self.alpha)
+                                          - self.minimum ** (1 + self.alpha))
+        return self.alpha * np.log(val) * np.log(normalising) * in_prior
+
+    def __repr__(self):
+        return Prior._subclass_repr_helper(self, subclass_args=['alpha'])
+
+
+class Uniform(PowerLaw):
+    """Uniform prior"""
+
+    def __init__(self, minimum, maximum, name=None, latex_label=None):
+        Prior.__init__(self, name, latex_label, minimum, maximum)
+        self.alpha = 0
+
+    def __repr__(self, subclass_keys=list(), subclass_names=list()):
+        return PowerLaw.__repr__(self)
+
+
+class LogUniform(PowerLaw):
+    """Uniform prior"""
+
+    def __init__(self, minimum, maximum, name=None, latex_label=None):
+        Prior.__init__(self, name, latex_label, minimum, maximum)
+        self.alpha = -1
+        if self.minimum <= 0:
+            logging.warning('You specified a uniform-in-log prior with minimum={}'.format(self.minimum))
+
+    def __repr__(self, subclass_keys=list(), subclass_names=list()):
+        return PowerLaw.__repr__(self)
+
 
 class Cosine(Prior):
 
@@ -205,6 +254,9 @@ class Cosine(Prior):
         """Return the prior probability of val, defined over [-pi/2, pi/2]"""
         in_prior = (val >= self.minimum) & (val <= self.maximum)
         return np.cos(val) / 2 * in_prior
+
+    def __repr__(self, subclass_keys=list(), subclass_names=list()):
+        return Prior._subclass_repr_helper(self)
 
 
 class Sine(Prior):
@@ -226,6 +278,9 @@ class Sine(Prior):
         in_prior = (val >= self.minimum) & (val <= self.maximum)
         return np.sin(val) / 2 * in_prior
 
+    def __repr__(self, subclass_keys=list(), subclass_names=list()):
+        return Prior._subclass_repr_helper(self)
+
 
 class Gaussian(Prior):
     """Gaussian prior"""
@@ -243,11 +298,17 @@ class Gaussian(Prior):
         This maps to the inverse CDF. This has been analytically solved for this case.
         """
         Prior.test_valid_for_rescaling(val)
-        return self.mu + erfinv(2 * val - 1) * 2**0.5 * self.sigma
+        return self.mu + erfinv(2 * val - 1) * 2 ** 0.5 * self.sigma
 
     def prob(self, val):
         """Return the prior probability of val"""
-        return np.exp(-(self.mu - val)**2 / (2 * self.sigma**2)) / (2 * np.pi)**0.5 / self.sigma
+        return np.exp(-(self.mu - val) ** 2 / (2 * self.sigma ** 2)) / (2 * np.pi) ** 0.5 / self.sigma
+
+    def lnprob(self, val):
+        return -0.5 * ((self.mu - val) ** 2 / self.sigma ** 2 + np.log(2 * np.pi * self.sigma ** 2))
+
+    def __repr__(self):
+        return Prior._subclass_repr_helper(self, subclass_args=['mu', 'sigma'])
 
 
 class TruncatedGaussian(Prior):
@@ -259,11 +320,9 @@ class TruncatedGaussian(Prior):
 
     def __init__(self, mu, sigma, minimum, maximum, name=None, latex_label=None):
         """Power law with bounds and alpha, spectral index"""
-        Prior.__init__(self, name, latex_label)
+        Prior.__init__(self, name=name, latex_label=latex_label, minimum=minimum, maximum=maximum)
         self.mu = mu
         self.sigma = sigma
-        self.minimum = minimum
-        self.maximum = maximum
 
         self.normalisation = (erf((self.maximum - self.mu) / 2 ** 0.5 / self.sigma) - erf(
             (self.minimum - self.mu) / 2 ** 0.5 / self.sigma)) / 2
@@ -282,34 +341,23 @@ class TruncatedGaussian(Prior):
         """Return the prior probability of val"""
         in_prior = (val >= self.minimum) & (val <= self.maximum)
         return np.exp(-(self.mu - val) ** 2 / (2 * self.sigma ** 2)) / (
-                    2 * np.pi) ** 0.5 / self.sigma / self.normalisation * in_prior
+                2 * np.pi) ** 0.5 / self.sigma / self.normalisation * in_prior
+
+    def __repr__(self):
+        return Prior._subclass_repr_helper(self, subclass_args=['mu', 'sigma'])
 
 
 class Interped(Prior):
 
-    def __init__(self, xx, yy, minimum=None, maximum=None, name=None, latex_label=None):
+    def __init__(self, xx, yy, minimum=np.nan, maximum=np.nan, name=None, latex_label=None):
         """Initialise object from arrays of x and y=p(x)"""
-        Prior.__init__(self, name, latex_label)
-        all_interpolated = interp1d(x=xx, y=yy, bounds_error=False, fill_value=0)
-        if minimum is None or minimum < min(xx):
-            self.minimum = min(xx)
-        else:
-            self.minimum = minimum
-        if maximum is None or maximum > max(xx):
-            self.maximum = max(xx)
-        else:
-            self.maximum = maximum
-        self.xx = np.linspace(self.minimum, self.maximum, len(xx))
-        self.yy = all_interpolated(self.xx)
-        if np.trapz(self.yy, self.xx) != 1:
-            logging.info('Supplied PDF is not normalised, normalising.')
-        self.yy /= np.trapz(self.yy, self.xx)
-        self.YY = cumtrapz(self.yy, self.xx, initial=0)
-        # Need last element of cumulative distribution to be exactly one.
-        self.YY[-1] = 1
-        self.probability_density = interp1d(x=self.xx, y=self.yy, bounds_error=False, fill_value=0)
-        self.cumulative_distribution = interp1d(x=self.xx, y=self.YY, bounds_error=False, fill_value=0)
-        self.inverse_cumulative_distribution = interp1d(x=self.YY, y=self.xx, bounds_error=True)
+        self.xx = xx
+        self.yy = yy
+        self.all_interpolated = interp1d(x=xx, y=yy, bounds_error=False, fill_value=0)
+        Prior.__init__(self, name, latex_label,
+                       minimum=np.nanmax(np.array((min(xx), minimum))),
+                       maximum=np.nanmin(np.array((max(xx), maximum))))
+        self.__initialize_attributes()
 
     def prob(self, val):
         """Return the prior probability of val"""
@@ -322,13 +370,49 @@ class Interped(Prior):
         This maps to the inverse CDF. This is done using interpolation.
         """
         Prior.test_valid_for_rescaling(val)
-        return self.inverse_cumulative_distribution(val)
+        rescaled = self.inverse_cumulative_distribution(val)
+        if rescaled.shape == ():
+            rescaled = float(rescaled)
+        return rescaled
 
     def __repr__(self):
-        prior_name = self.__class__.__name__
-        prior_args = ', '.join(
-            ['{}={}'.format(key, self.__dict__[key]) for key in ['xx', 'yy', '_Prior__latex_label']])
-        return "{}({})".format(prior_name, prior_args)
+        return Prior._subclass_repr_helper(self, subclass_args=['xx', 'yy'])
+
+    @property
+    def minimum(self):
+        return self.__minimum
+
+    @minimum.setter
+    def minimum(self, minimum):
+        self.__minimum = minimum
+        if '_Interped__maximum' in self.__dict__ and self.__maximum < np.inf:
+            self.__update_instance()
+
+    @property
+    def maximum(self):
+        return self.__maximum
+
+    @maximum.setter
+    def maximum(self, maximum):
+        self.__maximum = maximum
+        if '_Interped__minimum' in self.__dict__ and self.__minimum < np.inf:
+            self.__update_instance()
+
+    def __update_instance(self):
+        self.xx = np.linspace(self.minimum, self.maximum, len(self.xx))
+        self.yy = self.all_interpolated(self.xx)
+        self.__initialize_attributes()
+
+    def __initialize_attributes(self):
+        if np.trapz(self.yy, self.xx) != 1:
+            logging.info('Supplied PDF for {} is not normalised, normalising.'.format(self.name))
+        self.yy /= np.trapz(self.yy, self.xx)
+        self.YY = cumtrapz(self.yy, self.xx, initial=0)
+        # Need last element of cumulative distribution to be exactly one.
+        self.YY[-1] = 1
+        self.probability_density = interp1d(x=self.xx, y=self.yy, bounds_error=False, fill_value=0)
+        self.cumulative_distribution = interp1d(x=self.xx, y=self.YY, bounds_error=False, fill_value=0)
+        self.inverse_cumulative_distribution = interp1d(x=self.YY, y=self.xx, bounds_error=True)
 
 
 class FromFile(Interped):
@@ -345,11 +429,8 @@ class FromFile(Interped):
             logging.warning("Format should be:")
             logging.warning(r"x\tp(x)")
 
-    def __repr__(self):
-        prior_name = self.__class__.__name__
-        prior_args = ', '.join(
-            ['{}={}'.format(key, self.__dict__[key]) for key in ['id', 'minimum', 'maximum', '_Prior__latex_label']])
-        return "{}({})".format(prior_name, prior_args)
+    def __repr__(self, subclass_keys=list(), subclass_names=list()):
+        return Prior._subclass_repr_helper(self, subclass_args=['id'])
 
 
 class UniformComovingVolume(FromFile):
@@ -357,6 +438,9 @@ class UniformComovingVolume(FromFile):
     def __init__(self, minimum=None, maximum=None, name=None, latex_label=None):
         FromFile.__init__(self, file_name='comoving.txt', minimum=minimum, maximum=maximum, name=name,
                           latex_label=latex_label)
+
+    def __repr__(self, subclass_keys=list(), subclass_names=list()):
+        return FromFile.__repr__(self)
 
 
 def create_default_prior(name):
@@ -376,20 +460,25 @@ def create_default_prior(name):
         Default prior distribution for that parameter, if unknown None is returned.
     """
     default_priors = {
-        'mass_1': PowerLaw(name=name, alpha=0, minimum=5, maximum=100),
-        'mass_2': PowerLaw(name=name, alpha=0, minimum=5, maximum=100),
-        'mchirp': Uniform(name=name, minimum=5, maximum=100),
-        'q': Uniform(name=name, minimum=0, maximum=1),
+        'mass_1': Uniform(name=name, minimum=20, maximum=100),
+        'mass_2': Uniform(name=name, minimum=20, maximum=100),
+        'chirp_mass': Uniform(name=name, minimum=25, maximum=100),
+        'total_mass': Uniform(name=name, minimum=10, maximum=200),
+        'mass_ratio': Uniform(name=name, minimum=0.125, maximum=1),
+        'symmetric_mass_ratio': Uniform(name=name, minimum=8 / 81, maximum=0.25),
         'a_1': Uniform(name=name, minimum=0, maximum=0.8),
         'a_2': Uniform(name=name, minimum=0, maximum=0.8),
         'tilt_1': Sine(name=name),
         'tilt_2': Sine(name=name),
+        'cos_tilt_1': Uniform(name=name, minimum=-1, maximum=1),
+        'cos_tilt_2': Uniform(name=name, minimum=-1, maximum=1),
         'phi_12': Uniform(name=name, minimum=0, maximum=2 * np.pi),
         'phi_jl': Uniform(name=name, minimum=0, maximum=2 * np.pi),
         'luminosity_distance': UniformComovingVolume(name=name, minimum=1e2, maximum=5e3),
         'dec': Cosine(name=name),
         'ra': Uniform(name=name, minimum=0, maximum=2 * np.pi),
         'iota': Sine(name=name),
+        'cos_iota': Uniform(name=name, minimum=-1, maximum=1),
         'psi': Uniform(name=name, minimum=0, maximum=2 * np.pi),
         'phase': Uniform(name=name, minimum=0, maximum=2 * np.pi)
     }
@@ -413,8 +502,11 @@ def fill_priors(prior, likelihood):
     ----------
     prior: dict
         dictionary of prior objects and floats
-    likelihood: tupak.likelihood.Likelihood instance
+    likelihood: tupak.likelihood.GravitationalWaveTransient instance
         Used to infer the set of parameters to fill the prior with
+
+    Note: if `likelihood` has `non_standard_sampling_parameter_keys`, then this
+    will set-up default priors for those as well.
 
     Returns
     -------
@@ -436,6 +528,10 @@ def fill_priors(prior, likelihood):
 
     missing_keys = set(likelihood.parameters) - set(prior.keys())
 
+    if getattr(likelihood, 'non_standard_sampling_parameter_keys', None) is not None:
+        for parameter in likelihood.non_standard_sampling_parameter_keys:
+            prior[parameter] = create_default_prior(parameter)
+
     for missing_key in missing_keys:
         default_prior = create_default_prior(missing_key)
         if default_prior is None:
@@ -443,14 +539,67 @@ def fill_priors(prior, likelihood):
             logging.warning(
                 "Parameter {} has no default prior and is set to {}, this will"
                 " not be sampled and may cause an error."
-                .format(missing_key, set_val))
+                    .format(missing_key, set_val))
         else:
-            prior[missing_key] = default_prior
+            if not test_redundancy(missing_key, prior):
+                prior[missing_key] = default_prior
+
+    for key in prior:
+        test_redundancy(key, prior)
 
     return prior
 
 
-def write_priors_to_file(priors, outdir):
+def test_redundancy(key, prior):
+    """
+    Test whether adding the key would add be redundant.
+
+    Parameters
+    ----------
+    key: str
+        The string to test.
+    prior: dict
+        Current prior dictionary.
+
+    Return
+    ------
+    redundant: bool
+        Whether the key is redundant
+    """
+    redundant = False
+    mass_parameters = {'mass_1', 'mass_2', 'chirp_mass', 'total_mass', 'mass_ratio', 'symmetric_mass_ratio'}
+    spin_magnitude_parameters = {'a_1', 'a_2'}
+    spin_tilt_1_parameters = {'tilt_1', 'cos_tilt_1'}
+    spin_tilt_2_parameters = {'tilt_2', 'cos_tilt_2'}
+    spin_azimuth_parameters = {'phi_1', 'phi_2', 'phi_12', 'phi_jl'}
+    inclination_parameters = {'iota', 'cos_iota'}
+    distance_parameters = {'luminosity_distance', 'comoving_distance', 'redshift'}
+
+    for parameter_set in [mass_parameters, spin_magnitude_parameters, spin_azimuth_parameters]:
+        if key in parameter_set:
+            if len(parameter_set.intersection(prior.keys())) > 2:
+                redundant = True
+                logging.warning('{} in prior. This may lead to unexpected behaviour.'.format(
+                    parameter_set.intersection(prior.keys())))
+                break
+            elif len(parameter_set.intersection(prior.keys())) == 2:
+                redundant = True
+                break
+    for parameter_set in [inclination_parameters, distance_parameters, spin_tilt_1_parameters, spin_tilt_2_parameters]:
+        if key in parameter_set:
+            if len(parameter_set.intersection(prior.keys())) > 1:
+                redundant = True
+                logging.warning('{} in prior. This may lead to unexpected behaviour.'.format(
+                    parameter_set.intersection(prior.keys())))
+                break
+            elif len(parameter_set.intersection(prior.keys())) == 1:
+                redundant = True
+                break
+
+    return redundant
+
+
+def write_priors_to_file(priors, outdir, label):
     """
     Write the prior distribution to file.
 
@@ -458,13 +607,12 @@ def write_priors_to_file(priors, outdir):
     ----------
     priors: dict
         priors used
-    outdir: str
-        output directory
+    outdir, label: str
+        output directory and label
     """
-    if outdir[-1] != "/":
-        outdir += "/"
-    prior_file = outdir + "prior.txt"
-    logging.info("Writing priors to {}".format(prior_file))
+
+    prior_file = os.path.join(outdir, "{}_prior.txt".format(label))
+    logging.debug("Writing priors to {}".format(prior_file))
     with open(prior_file, "w") as outfile:
         for key in priors:
             outfile.write("prior['{}'] = {}\n".format(key, priors[key]))

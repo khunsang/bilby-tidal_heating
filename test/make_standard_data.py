@@ -15,12 +15,12 @@ sampling_frequency = 4096.
 simulation_parameters = dict(
     mass_1=36.,
     mass_2=29.,
-    a_1=0,
-    a_2=0,
-    tilt_1=0,
-    tilt_2=0,
-    phi_12=0,
-    phi_jl=0,
+    a_1=0.,
+    a_2=0.,
+    tilt_1=0.,
+    tilt_2=0.,
+    phi_12=0.,
+    phi_jl=0.,
     luminosity_distance=100.,
     iota=0.4,
     phase=1.3,
@@ -44,7 +44,7 @@ IFO = tupak.detector.get_interferometer_with_fake_noise_and_injection(name='H1',
                                                                       sampling_frequency=sampling_frequency)
 
 hf_signal_and_noise = IFO.data
-frequencies = tupak.utils.create_fequency_series(
+frequencies = tupak.utils.create_frequency_series(
     sampling_frequency=sampling_frequency, duration=time_duration)
 
 if __name__ == '__main__':

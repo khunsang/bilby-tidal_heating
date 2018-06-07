@@ -4,12 +4,15 @@ import os
 import numpy as np
 from math import fmod
 from gwpy.timeseries import TimeSeries
+from gwpy.signal import filter_design
+from scipy import signal
 import argparse
 
 # Constants
 speed_of_light = 299792458.0  # speed of light in m/s
 parsec = 3.085677581 * 1e16
 solar_mass = 1.98855 * 1e30
+
 
 def get_sampling_frequency(time_series):
     """
@@ -22,7 +25,7 @@ def get_sampling_frequency(time_series):
         return 1. / (time_series[1] - time_series[0])
 
 
-def create_time_series(sampling_frequency, duration, starting_time = 0.):
+def create_time_series(sampling_frequency, duration, starting_time=0.):
     return np.arange(starting_time, duration, 1./sampling_frequency)
 
 
@@ -64,7 +67,7 @@ def gps_time_to_gmst(gps_time):
     return gmst
 
 
-def create_fequency_series(sampling_frequency, duration):
+def create_frequency_series(sampling_frequency, duration):
     """
     Create a frequency series with the correct length and spacing.
 
@@ -104,7 +107,7 @@ def create_white_noise(sampling_frequency, duration):
 
     delta_freq = 1./duration
 
-    frequencies = create_fequency_series(sampling_frequency, duration)
+    frequencies = create_frequency_series(sampling_frequency, duration)
 
     norm1 = 0.5*(1./delta_freq)**0.5
     re1 = np.random.normal(0, norm1, len(frequencies))
@@ -246,23 +249,24 @@ def get_polarization_tensor(ra, dec, time, psi, mode):
     v = np.array([-np.sin(phi), np.cos(phi), 0])
     m = -u * np.sin(psi) - v * np.cos(psi)
     n = -u * np.cos(psi) + v * np.sin(psi)
+
+    if mode.lower() == 'plus':
+        return np.einsum('i,j->ij', m, m) - np.einsum('i,j->ij', n, n)
+    elif mode.lower() == 'cross':
+        return np.einsum('i,j->ij', m, n) + np.einsum('i,j->ij', n, m)
+    elif mode.lower() == 'breathing':
+        return np.einsum('i,j->ij', m, m) + np.einsum('i,j->ij', n, n)
+
     omega = np.cross(m, n)
-
-    polarization_tensors = {
-        "plus" : np.einsum('i,j->ij', m, m) - np.einsum('i,j->ij', n, n),
-        "cross": np.einsum('i,j->ij', m, n) + np.einsum('i,j->ij', n, m),
-        "breathing": np.einsum('i,j->ij', m, m) + np.einsum('i,j->ij', n, n),
-        "longitudinal": np.sqrt(2) * np.einsum('i,j->ij', omega, omega),
-        "x": np.einsum('i,j->ij', m, omega) + np.einsum('i,j->ij', omega, m),
-        "y": np.einsum('i,j->ij', n, omega) + np.einsum('i,j->ij', omega, n)
-    }
-
-    if mode in polarization_tensors.keys():
-        polarization_tensor = polarization_tensors[mode]
+    if mode.lower() == 'longitudinal':
+        return np.sqrt(2) * np.einsum('i,j->ij', omega, omega)
+    elif mode.lower() == 'x':
+        return np.einsum('i,j->ij', m, omega) + np.einsum('i,j->ij', omega, m)
+    elif mode.lower() == 'y':
+        return np.einsum('i,j->ij', n, omega) + np.einsum('i,j->ij', omega, n)
     else:
         logging.warning("{} not a polarization mode!".format(mode))
-        polarization_tensor = None
-    return polarization_tensor
+        return None
 
 
 def get_vertex_position_geocentric(latitude, longitude, elevation):
@@ -512,6 +516,112 @@ def get_open_strain_data(
     return strain
 
 
+def read_frame_file(file_name, t1, t2, channel=None, **kwargs):
+    """ A function which accesses the open strain data
+
+    This uses `gwpy` to download the open data and then saves a cached copy for
+    later use
+
+    Parameters
+    ----------
+    file_name: str
+        The name of the frame to read
+    t1, t2: float
+        The GPS time of the start and end of the data
+    channel: str
+        The name of the channel being searched for, some standard channel names are attempted
+        if channel is not specified or if specified channel is not found.
+    **kwargs:
+        Passed to `gwpy.timeseries.TimeSeries.fetch_open_data`
+
+    Returns
+    -----------
+    strain: gwpy.timeseries.TimeSeries
+
+    """
+    loaded = False
+    if channel is not None:
+        try:
+            strain = TimeSeries.read(source=file_name, channel=channel, start=t1, end=t2, **kwargs)
+            loaded = True
+            logging.info('Successfully loaded {}.'.format(channel))
+        except RuntimeError:
+            logging.warning('Channel {} not found. Trying preset channel names'.format(channel))
+    for channel_type in ['GDS-CALIB_STRAIN', 'DCS-CALIB_STRAIN_C01', 'DCS-CALIB_STRAIN_C02']:
+        for ifo_name in ['H1', 'L1']:
+            channel = '{}:{}'.format(ifo_name, channel_type)
+            if loaded:
+                continue
+            try:
+                strain = TimeSeries.read(source=file_name, channel=channel, start=t1, end=t2, **kwargs)
+                loaded = True
+                logging.info('Successfully loaded {}.'.format(channel))
+            except RuntimeError:
+                None
+
+    if loaded:
+        return strain
+    else:
+        logging.warning('No data loaded.')
+        return None
+
+
+def process_strain_data(
+        strain, alpha=0.25, filter_freq=1024, **kwargs):
+    """
+    Helper function to obtain an Interferometer instance with appropriate
+    PSD and data, given an center_time.
+
+    Parameters
+    ----------
+    name: str
+        Detector name, e.g., 'H1'.
+    center_time: float
+        GPS time of the center_time about which to perform the analysis.
+        Note: the analysis data is from `center_time-T/2` to `center_time+T/2`.
+    T: float
+        The total time (in seconds) to analyse. Defaults to 4s.
+    alpha: float
+        The tukey window shape parameter passed to `scipy.signal.tukey`.
+    psd_offset, psd_duration: float
+        The power spectral density (psd) is estimated using data from
+        `center_time+psd_offset` to `center_time+psd_offset + psd_duration`.
+    outdir: str
+        Directory where the psd files are saved
+    plot: bool
+        If true, create an ASD + strain plot
+    filter_freq: float
+        Low pass filter frequency
+    **kwargs:
+        All keyword arguments are passed to
+        `gwpy.timeseries.TimeSeries.fetch_open_data()`.
+
+    Returns
+    -------
+    interferometer: `tupak.detector.Interferometer`
+        An Interferometer instance with a PSD and frequency-domain strain data.
+
+    """
+
+    sampling_frequency = int(strain.sample_rate.value)
+
+    # Low pass filter
+    bp = filter_design.lowpass(filter_freq, strain.sample_rate)
+    strain = strain.filter(bp, filtfilt=True)
+    strain = strain.crop(*strain.span.contract(1))
+
+    time_series = strain.times.value
+    time_duration = time_series[-1] - time_series[0]
+
+    # Apply Tukey window
+    N = len(time_series)
+    strain = strain * signal.windows.tukey(N, alpha=alpha)
+
+    frequency_domain_strain, frequencies = nfft(strain.value, sampling_frequency)
+
+    return frequency_domain_strain, frequencies
+
+
 def set_up_command_line_arguments():
     parser = argparse.ArgumentParser(
         description="Command line interface for tupak scripts")
@@ -529,6 +639,9 @@ def set_up_command_line_arguments():
                         default=['H1', 'L1', 'V1'],
                         help=("List of detectors to use in open data calls, "
                               "e.g. -d H1 L1 for H1 and L1"))
+    parser.add_argument("-t", "--test", action="store_true",
+                        help=("Used for testing only: don't run full PE, but"
+                              " just check nothing breaks"))
     args, _ = parser.parse_known_args()
 
     if args.quite:

@@ -1,14 +1,15 @@
 from __future__ import division, print_function, absolute_import
-import numpy as np
-import tupak
+
 import logging
 import os
-from scipy.interpolate import interp1d
-import matplotlib.pyplot as plt
-from scipy import signal
-from gwpy.timeseries import TimeSeries
-from gwpy.signal import filter_design
 
+import matplotlib.pyplot as plt
+import numpy as np
+from gwpy.signal import filter_design
+from scipy import signal
+from scipy.interpolate import interp1d
+
+import tupak
 from . import utils
 
 
@@ -51,7 +52,7 @@ class Interferometer(object):
         self.__x_updated = False
         self.__y_updated = False
         self.__vertex_updated = False
-        self.__detector_tensor_update = False
+        self.__detector_tensor_updated = False
 
         self.name = name
         self.minimum_frequency = minimum_frequency
@@ -66,9 +67,11 @@ class Interferometer(object):
         self.yarm_tilt = yarm_tilt
         self.power_spectral_density = power_spectral_density
         self.data = np.array([])
-        self.frequency_array = []
+        self.frequency_array = np.array([])
         self.sampling_frequency = None
         self.duration = None
+        self.time_marginalization = False
+        self.epoch = 0
 
     @property
     def minimum_frequency(self):
@@ -170,7 +173,7 @@ class Interferometer(object):
         if self.__x_updated is False:
             self.__x = self.unit_vector_along_arm('x')
             self.__x_updated = True
-            self.__detector_tensor_update = False
+            self.__detector_tensor_updated = False
         return self.__x
 
     @property
@@ -178,7 +181,7 @@ class Interferometer(object):
         if self.__y_updated is False:
             self.__y = self.unit_vector_along_arm('y')
             self.__y_updated = True
-            self.__detector_tensor_update = False
+            self.__detector_tensor_updated = False
         return self.__y
 
     @property
@@ -188,9 +191,9 @@ class Interferometer(object):
 
         See Eq. B6 of arXiv:gr-qc/0008066
         """
-        if self.__detector_tensor_update is False:
+        if self.__detector_tensor_updated is False:
             self.__detector_tensor = 0.5 * (np.einsum('i,j->ij', self.x, self.x) - np.einsum('i,j->ij', self.y, self.y))
-            self.__detector_tensor_update = True
+            self.__detector_tensor_updated = True
         return self.__detector_tensor
 
     def antenna_response(self, ra, dec, time, psi, mode):
@@ -237,11 +240,16 @@ class Interferometer(object):
         time_shift = self.time_delay_from_geocenter(
             parameters['ra'],
             parameters['dec'],
-            parameters['geocent_time'])
+            self.epoch)  # parameters['geocent_time'])
 
-        dt = self.epoch - (parameters['geocent_time'] - time_shift)
+        if self.time_marginalization:
+            dt = time_shift  # when marginalizing over time we only care about relative time shifts between detectors and marginalized over
+                             # all candidate coalescence times
+        else:
+            dt = self.epoch - (parameters['geocent_time'] - time_shift)
+
         signal_ifo = signal_ifo * np.exp(
-                -1j * 2 * np.pi * dt * self.frequency_array)
+            -1j * 2 * np.pi * dt * self.frequency_array)
 
         return signal_ifo
 
@@ -258,9 +266,9 @@ class Interferometer(object):
             logging.warning('Trying to inject signal which is None.')
         else:
             signal_ifo = self.get_detector_response(waveform_polarizations, parameters)
-            try:
+            if np.shape(self.data).__eq__(np.shape(signal_ifo)):
                 self.data += signal_ifo
-            except TypeError:
+            else:
                 logging.info('Injecting into zero noise.')
                 self.data = signal_ifo
             opt_snr = np.sqrt(tupak.utils.optimal_snr_squared(signal=signal_ifo, interferometer=self,
@@ -283,21 +291,24 @@ class Interferometer(object):
         Output:
         n - unit vector along arm in cartesian Earth-based coordinates
         """
+        if arm == 'x':
+            return self.__calculate_arm(self.xarm_tilt, self.xarm_azimuth)
+        elif arm == 'y':
+            return self.__calculate_arm(self.yarm_tilt, self.yarm_azimuth)
+        else:
+            logging.warning('Not a recognized arm, aborting!')
+            return
+
+    def __calculate_arm(self, arm_tilt, arm_azimuth):
         e_long = np.array([-np.sin(self.__longitude), np.cos(self.__longitude), 0])
         e_lat = np.array([-np.sin(self.__latitude) * np.cos(self.__longitude),
                           -np.sin(self.__latitude) * np.sin(self.__longitude), np.cos(self.__latitude)])
         e_h = np.array([np.cos(self.__latitude) * np.cos(self.__longitude),
                         np.cos(self.__latitude) * np.sin(self.__longitude), np.sin(self.__latitude)])
-        if arm == 'x':
-            n = np.cos(self.__xarm_tilt) * np.cos(self.__xarm_azimuth) * e_long + np.cos(self.__xarm_tilt) \
-                * np.sin(self.__xarm_azimuth) * e_lat + np.sin(self.__xarm_tilt) * e_h
-        elif arm == 'y':
-            n = np.cos(self.__yarm_tilt) * np.cos(self.__yarm_azimuth) * e_long + np.cos(self.__yarm_tilt) \
-                * np.sin(self.__yarm_azimuth) * e_lat + np.sin(self.__yarm_tilt) * e_h
-        else:
-            logging.warning('Not a recognized arm, aborting!')
-            return
-        return n
+
+        return np.cos(arm_tilt) * np.cos(arm_azimuth) * e_long +\
+               np.cos(arm_tilt) * np.sin(arm_azimuth) * e_lat + \
+               np.sin(arm_tilt) * e_h
 
     @property
     def amplitude_spectral_density_array(self):
@@ -312,8 +323,9 @@ class Interferometer(object):
         return self.power_spectral_density.power_spectral_density_interpolated(self.frequency_array)
 
     def set_data(self, sampling_frequency, duration, epoch=0,
-                 from_power_spectral_density=None,
-                 frequency_domain_strain=None):
+                 from_power_spectral_density=False, zero_noise=False,
+                 frequency_domain_strain=None, frame_file=None,
+                 channel_name=None, overwrite_psd=True, **kwargs):
         """
         Set the interferometer frequency-domain stain and accompanying PSD values.
 
@@ -330,6 +342,18 @@ class Interferometer(object):
         from_power_spectral_density: bool
             If frequency_domain_strain not given, use IFO's PSD object to
             generate noise
+        zero_noise: bool
+            If true and frequency_domain_strain and from_power_spectral_density
+            are false, set the data to be zero.
+        frame_file: str
+            File from which to load data.
+        channel_name: str
+            Channel to read from frame.
+        overwrite_psd: bool
+            Whether to overwrite the psd in the interferometer with one calculated
+            from the loaded data, default=True.
+        kwargs: dict
+            Additional arguments for loading data.
         """
 
         self.epoch = epoch
@@ -337,14 +361,26 @@ class Interferometer(object):
         if frequency_domain_strain is not None:
             logging.info(
                 'Setting {} data using provided frequency_domain_strain'.format(self.name))
-            frequencies = utils.create_fequency_series(sampling_frequency, duration)
-        elif from_power_spectral_density is not None:
+            frequencies = utils.create_frequency_series(sampling_frequency, duration)
+        elif from_power_spectral_density:
             logging.info(
                 'Setting {} data using noise realization from provided'
                 'power_spectal_density'.format(self.name))
             frequency_domain_strain, frequencies = \
                 self.power_spectral_density.get_noise_realisation(
                     sampling_frequency, duration)
+        elif zero_noise:
+            logging.info('Setting zero noise in {}'.format(self.name))
+            frequencies = utils.create_frequency_series(sampling_frequency, duration)
+            frequency_domain_strain = np.zeros_like(frequencies) * (1 + 1j)
+        elif frame_file is not None:
+            logging.info('Reading data from frame, {}.'.format(self.name))
+            strain = tupak.utils.read_frame_file(
+                frame_file, t1=epoch, t2=epoch+duration, channel=channel_name, resample=sampling_frequency)
+            frequency_domain_strain, frequencies = tupak.utils.process_strain_data(strain, **kwargs)
+            if overwrite_psd:
+                self.power_spectral_density = PowerSpectralDensity(
+                    frame_file=frame_file, channel_name=channel_name, epoch=epoch, **kwargs)
         else:
             raise ValueError("No method to set data provided.")
 
@@ -396,16 +432,33 @@ class Interferometer(object):
 
 class PowerSpectralDensity:
 
-    def __init__(self, asd_file=None, psd_file='aLIGO_ZERO_DET_high_P_psd.txt'):
+    def __init__(self, asd_file=None, psd_file='aLIGO_ZERO_DET_high_P_psd.txt', frame_file=None, epoch=0,
+                 psd_duration=1024, psd_offset=16, channel_name=None, filter_freq=1024, alpha=0.25, fft_length=4):
         """
-        Instantiate a new PSD object.
+        Instantiate a new PowerSpectralDensity object.
 
         Only one of the asd_file or psd_file needs to be specified.
         If multiple are given, the first will be used.
-        FIXME: Allow reading a frame and then FFT to get PSD, use gwpy?
 
-        :param asd_file: amplitude spectral density, format 'f h_f'
-        :param psd_file: power spectral density, format 'f h_f'
+        Parameters:
+        asd_file: str
+            File containing amplitude spectral density, format 'f h_f'
+        psd_file: str
+            File containing power spectral density, format 'f h_f'
+        frame_file: str
+            Frame file to read data from.
+        epoch: float
+            Beginning of segment to analyse.
+        psd_duration: float
+            Duration of data to generate PSD from.
+        psd_offset: float
+            Offset of data from beginning of analysed segment.
+        channel_name: str
+            Name of channel to use to generate PSD.
+        alpha: float
+            Parameter for Tukey window.
+        fft_length: float
+            Number of seconds in a single fft.
         """
 
         self.frequencies = []
@@ -424,6 +477,24 @@ class PowerSpectralDensity:
                 logging.warning("The minimum of the provided curve is {:.2e}.".format(
                     min(self.amplitude_spectral_density)))
                 logging.warning("You may have intended to provide this as a power spectral density.")
+        elif frame_file is not None:
+            strain = tupak.utils.read_frame_file(frame_file, t1=epoch - psd_duration - psd_offset,
+                                                 t2=epoch - psd_duration, channel=channel_name)
+            sampling_frequency = int(strain.sample_rate.value)
+
+            # Low pass filter
+            bp = filter_design.lowpass(filter_freq, strain.sample_rate)
+            strain = strain.filter(bp, filtfilt=True)
+            strain = strain.crop(*strain.span.contract(1))
+
+            # Create and save PSDs
+            NFFT = int(sampling_frequency * fft_length)
+            window = signal.windows.tukey(NFFT, alpha=alpha)
+            psd = strain.psd(fftlength=fft_length, window=window)
+            self.frequencies = psd.frequencies
+            self.power_spectral_density = psd.value
+            self.amplitude_spectral_density = self.power_spectral_density**0.5
+            self.interpolate_power_spectral_density()
         else:
             self.power_spectral_density_file = psd_file
             self.import_power_spectral_density()
@@ -498,15 +569,16 @@ def get_empty_interferometer(name):
     The available instruments are:
         H1, L1, V1, GEO600
 
-    Detector positions taken from LIGO-T980044-10 for L1/H1 and from arXiv:gr-qc/0008066 [45] for V1/GEO600
+    Detector positions taken from LIGO-T980044-10 for L1/H1 and from
+    arXiv:gr-qc/0008066 [45] for V1/GEO600
 
     Parameters
     ----------
     name: str
         Interferometer identifier.
 
-    Return
-    ------
+    Returns
+    -------
     interferometer: Interferometer
         Interferometer instance
     """
@@ -526,11 +598,16 @@ def get_empty_interferometer(name):
                              minimum_frequency=20, maximum_frequency=2048,
                              latitude=43 + 37. / 60 + 53.0921 / 3600, longitude=10 + 30. / 60 + 16.1878 / 3600,
                              elevation=51.884, xarm_azimuth=70.5674, yarm_azimuth=160.5674),
-        'GEO600': Interferometer(name='GEO600', power_spectral_density=PowerSpectralDensity(asd_file='GEO600_S6e_asd.txt'),
-                                 minimum_frequency=40, maximum_frequency=2048,
-                                 length=0.6, latitude=52 + 14. / 60 + 42.528 / 3600, longitude=9 + 48. / 60 + 25.894 / 3600,
-                                 elevation=114.425,
-                                 xarm_azimuth=115.9431, yarm_azimuth=21.6117)
+        'GEO600': Interferometer(name='GEO600',
+                                 power_spectral_density=PowerSpectralDensity(asd_file='GEO600_S6e_asd.txt'),
+                                 minimum_frequency=40, maximum_frequency=2048, length=0.6,
+                                 latitude=52 + 14. / 60 + 42.528 / 3600, longitude=9 + 48. / 60 + 25.894 / 3600,
+                                 elevation=114.425, xarm_azimuth=115.9431, yarm_azimuth=21.6117),
+        'CE': Interferometer(name='CE', power_spectral_density=PowerSpectralDensity(psd_file='CE_psd.txt'),
+                             minimum_frequency=10, maximum_frequency=2048,
+                             length=40, latitude=46 + 27. / 60 + 18.528 / 3600,
+                             longitude=-(119 + 24. / 60 + 27.5657 / 3600), elevation=142.554, xarm_azimuth=125.9994,
+                             yarm_azimuth=215.994, xarm_tilt=-6.195e-4, yarm_tilt=1.25e-5),
     }
 
     if name in known_interferometers.keys():
@@ -546,7 +623,7 @@ def get_interferometer_with_open_data(
         raw_data_file=None, **kwargs):
     """
     Helper function to obtain an Interferometer instance with appropriate
-    PSD and data, given an center_time
+    PSD and data, given an center_time.
 
     Parameters
     ----------
@@ -576,18 +653,24 @@ def get_interferometer_with_open_data(
     -------
     interferometer: `tupak.detector.Interferometer`
         An Interferometer instance with a PSD and frequency-domain strain data.
+
     """
+
+    logging.warning(
+        "Parameter estimation for real interferometer data in tupak is in "
+        "alpha testing at the moment: the routines for windowing and filtering"
+        " have not been reviewed.")
 
     utils.check_directory_exists_and_if_not_mkdir(outdir)
 
     strain = utils.get_open_strain_data(
-            name, center_time-T/2, center_time+T/2, outdir=outdir, cache=cache,
-            raw_data_file=raw_data_file, **kwargs)
+        name, center_time - T / 2, center_time + T / 2, outdir=outdir, cache=cache,
+        raw_data_file=raw_data_file, **kwargs)
 
     strain_psd = utils.get_open_strain_data(
-            name, center_time+psd_offset, center_time+psd_offset+psd_duration,
-            raw_data_file=raw_data_file,
-            outdir=outdir, cache=cache, **kwargs)
+        name, center_time + psd_offset, center_time + psd_offset + psd_duration,
+        raw_data_file=raw_data_file,
+        outdir=outdir, cache=cache, **kwargs)
 
     sampling_frequency = int(strain.sample_rate.value)
 
@@ -600,10 +683,10 @@ def get_interferometer_with_open_data(
 
     # Create and save PSDs
     NFFT = int(sampling_frequency * T)
-    window = signal.tukey(NFFT, alpha=alpha)
+    window = signal.windows.tukey(NFFT, alpha=alpha)
     psd = strain_psd.psd(fftlength=T, window=window)
     psd_file = '{}/{}_PSD_{}_{}.txt'.format(
-        outdir, name, center_time+psd_offset, psd_duration)
+        outdir, name, center_time + psd_offset, psd_duration)
     with open('{}'.format(psd_file), 'w+') as file:
         for f, p in zip(psd.frequencies.value, psd.value):
             file.write('{} {}\n'.format(f, p))
@@ -613,7 +696,7 @@ def get_interferometer_with_open_data(
 
     # Apply Tukey window
     N = len(time_series)
-    strain = strain * signal.tukey(N, alpha=alpha)
+    strain = strain * signal.windows.tukey(N, alpha=alpha)
 
     interferometer = get_empty_interferometer(name)
     interferometer.power_spectral_density = PowerSpectralDensity(
@@ -630,7 +713,7 @@ def get_interferometer_with_open_data(
                   '-C0', label=name)
         ax.loglog(interferometer.frequency_array,
                   interferometer.amplitude_spectral_density_array,
-                  '-C1', lw=0.5, label=name+' ASD')
+                  '-C1', lw=0.5, label=name + ' ASD')
         ax.grid('on')
         ax.set_ylabel(r'strain [strain/$\sqrt{\rm Hz}$]')
         ax.set_xlabel(r'frequency [Hz]')
@@ -644,17 +727,18 @@ def get_interferometer_with_open_data(
 def get_interferometer_with_fake_noise_and_injection(
         name, injection_polarizations, injection_parameters,
         sampling_frequency=4096, time_duration=4, outdir='outdir', plot=True,
-        save=True):
+        save=True, zero_noise=False):
     """
     Helper function to obtain an Interferometer instance with appropriate
-    PSD and data, given an center_time
+    power spectral density and data, given an center_time.
 
     Parameters
     ----------
     name: str
         Detector name, e.g., 'H1'.
     injection_polarizations: dict
-        polarizations of waveform to inject, output of waveform_generator.get_frequency_domain_signal
+        polarizations of waveform to inject, output of
+        `waveform_generator.get_frequency_domain_signal`
     injection_parameters: dict
         injection parameters, needed for sky position and timing
     sampling_frequency: float
@@ -667,19 +751,29 @@ def get_interferometer_with_fake_noise_and_injection(
         If true, create an ASD + strain plot
     save: bool
         If true, save frequency domain data and PSD to file
+    zero_noise: bool
+        If true, set noise to zero.
 
     Returns
     -------
     interferometer: `tupak.detector.Interferometer`
         An Interferometer instance with a PSD and frequency-domain strain data.
+
     """
 
     utils.check_directory_exists_and_if_not_mkdir(outdir)
 
     interferometer = get_empty_interferometer(name)
-    interferometer.set_data(
-        sampling_frequency=sampling_frequency, duration=time_duration,
-        from_power_spectral_density=True)
+    if zero_noise:
+        interferometer.set_data(
+            sampling_frequency=sampling_frequency, duration=time_duration,
+            zero_noise=True,
+            epoch=(injection_parameters['geocent_time']+2)-time_duration)
+    else:
+        interferometer.set_data(
+            sampling_frequency=sampling_frequency, duration=time_duration,
+            from_power_spectral_density=True,
+            epoch=(injection_parameters['geocent_time']+2)-time_duration)
     interferometer.inject_signal(
         waveform_polarizations=injection_polarizations,
         parameters=injection_parameters)
@@ -693,9 +787,9 @@ def get_interferometer_with_fake_noise_and_injection(
                   '-C0', label=name)
         ax.loglog(interferometer.frequency_array,
                   interferometer.amplitude_spectral_density_array,
-                  '-C1', lw=0.5, label=name+' ASD')
+                  '-C1', lw=0.5, label=name + ' ASD')
         ax.loglog(interferometer.frequency_array, abs(interferometer_signal),
-                  label='Signal')
+                  '-C2', label='Signal')
         ax.grid('on')
         ax.set_ylabel(r'strain [strain/$\sqrt{\rm Hz}$]')
         ax.set_xlabel(r'frequency [Hz]')
@@ -715,9 +809,6 @@ def get_event_data(
         plot=True, filter_freq=1024, raw_data_file=None, **kwargs):
     """
     Get open data for a specified event.
-
-    We currently know about:
-        GW150914
 
     Parameters
     ----------

@@ -3,13 +3,7 @@ import os
 import numpy as np
 import deepdish
 import pandas as pd
-
-try:
-    from chainconsumer import ChainConsumer
-except ImportError:
-    def ChainConsumer():
-        raise ImportError(
-            "You do not have the optional module chainconsumer installed")
+import corner
 
 
 def result_file_name(outdir, label):
@@ -17,20 +11,36 @@ def result_file_name(outdir, label):
     return '{}/{}_result.h5'.format(outdir, label)
 
 
-def read_in_result(outdir, label):
-    """ Read in a saved .h5 data file """
-    filename = result_file_name(outdir, label)
+def read_in_result(outdir=None, label=None, filename=None):
+    """ Read in a saved .h5 data file
+
+    Parameters
+    ----------
+    outdir, label: str
+        If given, use the default naming convention for saved results file
+    filename: str
+        If given, try to load from this filename
+
+    Returns:
+    result: tupak.result.Result instance
+
+    """
+    if filename is None:
+        filename = result_file_name(outdir, label)
+    elif (outdir is None or label is None) and filename is None:
+        raise ValueError("No information given to load file")
     if os.path.isfile(filename):
         return Result(deepdish.io.load(filename))
     else:
-        return None
+        raise ValueError("No result found")
 
 
 class Result(dict):
     def __init__(self, dictionary=None):
         if type(dictionary) is dict:
             for key in dictionary:
-                setattr(self, key, dictionary[key])
+                val = self._standardise_strings(dictionary[key], key)
+                setattr(self, key, val)
 
     def __getattr__(self, name):
         try:
@@ -45,19 +55,36 @@ class Result(dict):
         """Print a summary """
         if hasattr(self, 'samples'):
             return ("nsamples: {:d}\n"
-                    "noise_logz: {:6.3f}\n"
-                    "logz: {:6.3f} +/- {:6.3f}\n"
+                    "log_noise_evidence: {:6.3f}\n"
+                    "log_evidence: {:6.3f} +/- {:6.3f}\n"
                     "log_bayes_factor: {:6.3f} +/- {:6.3f}\n"
-                    .format(len(self.samples), self.noise_logz, self.logz,
-                            self.logzerr, self.log_bayes_factor, self.logzerr))
+                    .format(len(self.samples), self.log_noise_evidence, self.log_evidence,
+                            self.log_evidence_err, self.log_bayes_factor,
+                            self.log_evidence_err))
         else:
             return ''
 
-    def save_to_file(self, outdir, label):
+    def _standardise_a_string(self, item):
+        """ When reading in data, ensure all strings are decoded correctly """
+        if type(item) in [bytes]:
+            return item.decode()
+        else:
+            return item
+
+    def _standardise_strings(self, item, name=None):
+        if type(item) in [list]:
+            item = [self._standardise_a_string(i) for i in item]
+        # logging.debug("Unable to decode item {}".format(name))
+        return item
+
+    def get_result_dictionary(self):
+        return dict(self)
+
+    def save_to_file(self):
         """ Writes the Result to a deepdish h5 file """
-        file_name = result_file_name(outdir, label)
-        if os.path.isdir(outdir) is False:
-            os.makedirs(outdir)
+        file_name = result_file_name(self.outdir, self.label)
+        if os.path.isdir(self.outdir) is False:
+            os.makedirs(self.outdir)
         if os.path.isfile(file_name):
             logging.info(
                 'Renaming existing file {} to {}.old'.format(file_name,
@@ -66,11 +93,15 @@ class Result(dict):
 
         logging.info("Saving result to {}".format(file_name))
         try:
-            deepdish.io.save(file_name, self)
+            deepdish.io.save(file_name, self.get_result_dictionary())
         except Exception as e:
             logging.error(
                 "\n\n Saving the data has failed with the following message:\n {} \n\n"
                 .format(e))
+
+    def save_posterior_samples(self):
+        filename = '{}/{}_posterior_samples.txt'.format(self.outdir, self.label)
+        self.posterior.to_csv(filename, index=False, header=True)
 
     def get_latex_labels_from_parameter_keys(self, keys):
         return_list = []
@@ -85,122 +116,99 @@ class Result(dict):
                                  .format(k))
         return return_list
 
-    def plot_corner(self, save=True, **kwargs):
-        """ Plot a corner-plot using chain-consumer
+    def plot_corner(self, parameters=None, save=True, dpi=300, **kwargs):
+        """ Plot a corner-plot using corner
+
+        See https://corner.readthedocs.io/en/latest/ for a detailed API.
 
         Parameters
         ----------
+        parameters: list
+            If given, a list of the parameter names to include
         save: bool
             If true, save the image using the given label and outdir
+        **kwargs:
+            Other keyword arguments are passed to `corner.corner`. We set some
+            defaults to improve the basic look and feel, but these can all be
+            overridden.
 
         Returns
         -------
         fig:
             A matplotlib figure instance
+
         """
 
-        # Set some defaults (unless already set)
-        kwargs['figsize'] = kwargs.get('figsize', 'GROW')
+        defaults_kwargs = dict(
+            bins=50, smooth=0.9, label_kwargs=dict(fontsize=16),
+            title_kwargs=dict(fontsize=16), color='#0072C1',
+            truth_color='tab:orange', show_titles=True,
+            quantiles=[0.025, 0.975], levels=(0.39, 0.8, 0.97),
+            plot_density=False, plot_datapoints=True, fill_contours=True,
+            max_n_ticks=3)
+
+        defaults_kwargs.update(kwargs)
+        kwargs = defaults_kwargs
+
+        if 'truth' in kwargs:
+            kwargs['truths'] = kwargs.pop('truth')
+
+        if getattr(self, 'injection_parameters', None) is not None:
+            injection_parameters = [self.injection_parameters.get(key, None)
+                                    for key in self.search_parameter_keys]
+            kwargs['truths'] = kwargs.get('truths', injection_parameters)
+
+        if parameters is None:
+            parameters = self.search_parameter_keys
+
+        xs = self.posterior[parameters].values
+        kwargs['labels'] = kwargs.get(
+            'labels', self.get_latex_labels_from_parameter_keys(
+                parameters))
+
+        if type(kwargs.get('truths')) == dict:
+            truths = [kwargs['truths'][k] for k in parameters]
+            kwargs['truths'] = truths
+
+        fig = corner.corner(xs, **kwargs)
+
         if save:
             filename = '{}/{}_corner.png'.format(self.outdir, self.label)
-            kwargs['filename'] = kwargs.get('filename', filename)
-            logging.info('Saving corner plot to {}'.format(kwargs['filename']))
-        if self.injection_parameters is not None:
-            # If no truth argument given, set these to the injection params
-            injection_parameters = [self.injection_parameters[key]
-                                    for key in self.search_parameter_keys]
-            kwargs['truth'] = kwargs.get('truth', injection_parameters)
+            logging.info('Saving corner plot to {}'.format(filename))
+            fig.savefig(filename, dpi=dpi)
 
-        if type(kwargs.get('truth')) == dict:
-            old_keys = kwargs['truth'].keys()
-            new_keys = self.get_latex_labels_from_parameter_keys(old_keys)
-            for old, new in zip(old_keys, new_keys):
-                kwargs['truth'][new] = kwargs['truth'].pop(old)
-        if 'parameters' in kwargs:
-            kwargs['parameters'] = self.get_latex_labels_from_parameter_keys(
-                kwargs['parameters'])
-
-        # Check all parameter_labels are a valid string
-        for i, label in enumerate(self.parameter_labels):
-            if label is None:
-                self.parameter_labels[i] = 'Unknown'
-        c = ChainConsumer()
-        c.add_chain(self.samples, parameters=self.parameter_labels,
-                    name=self.label)
-        fig = c.plotter.plot(**kwargs)
         return fig
 
     def plot_walks(self, save=True, **kwargs):
-        """ Plot the chain walks using chain-consumer
-
-        Parameters
-        ----------
-        save: bool
-            If true, save the image using the given label and outdir
-
-        Returns
-        -------
-        fig:
-            A matplotlib figure instance
         """
-
-        # Set some defaults (unless already set)
-        if save:
-            kwargs['filename'] = '{}/{}_walks.png'.format(self.outdir, self.label)
-            logging.info('Saving walker plot to {}'.format(kwargs['filename']))
-        if self.injection_parameters is not None:
-            kwargs['truth'] = [self.injection_parameters[key] for key in self.search_parameter_keys]
-        c = ChainConsumer()
-        c.add_chain(self.samples, parameters=self.parameter_labels)
-        fig = c.plotter.plot_walks(**kwargs)
-        return fig
+        """
+        logging.warning("plot_walks deprecated")
 
     def plot_distributions(self, save=True, **kwargs):
-        """ Plot the chain walks using chain-consumer
+        """
+        """
+        logging.warning("plot_distributions deprecated")
+
+    def samples_to_posterior(self, likelihood=None, priors=None,
+                             conversion_function=None):
+        """
+        Convert array of samples to posterior (a Pandas data frame).
 
         Parameters
         ----------
-        save: bool
-            If true, save the image using the given label and outdir
-
-        Returns
-        -------
-        fig:
-            A matplotlib figure instance
+        likelihood: tupak.likelihood.GravitationalWaveTransient
+            GravitationalWaveTransient used for sampling.
+        priors: dict
+            Dictionary of prior object, used to fill in delta function priors.
+        conversion_function: function
+            Function which adds in extra parameters to the data frame,
+            should take the data_frame, likelihood and prior as arguments.
         """
-
-        # Set some defaults (unless already set)
-        if save:
-            kwargs['filename'] = '{}/{}_distributions.png'.format(self.outdir, self.label)
-            logging.info('Saving distributions plot to {}'.format(kwargs['filename']))
-        if self.injection_parameters is not None:
-            kwargs['truth'] = [self.injection_parameters[key] for key in self.search_parameter_keys]
-        c = ChainConsumer()
-        c.add_chain(self.samples, parameters=self.parameter_labels)
-        fig = c.plotter.plot_distributions(**kwargs)
-        return fig
-
-    def write_prior_to_file(self, outdir):
-        """
-        Write the prior distribution to file.
-
-        :return:
-        """
-        outfile = outdir + '.prior'
-        with open(outfile, "w") as prior_file:
-            for key in self.prior:
-                prior_file.write(self.prior[key])
-
-    def samples_to_data_frame(self):
-        """
-        Convert array of samples to data frame.
-
-        :return:
-        """
-        data_frame = pd.DataFrame(self.samples, columns=self.search_parameter_keys)
+        data_frame = pd.DataFrame(
+            self.samples, columns=self.search_parameter_keys)
+        if conversion_function is not None:
+            conversion_function(data_frame, likelihood, priors)
         self.posterior = data_frame
-        for key in self.fixed_parameter_keys:
-            self.posterior[key] = self.prior[key].sample(len(self.posterior))
 
     def construct_cbc_derived_parameters(self):
         """
@@ -221,7 +229,7 @@ class Result(dict):
                                       (4 * self.posterior.q + 3) / (3 * self.posterior.q + 4) * self.posterior.q
                                       * self.posterior.a_2 * np.sin(self.posterior.tilt_2))
 
-    def check_attribute_match_to_other_object(self, name, other_object):
+    def _check_attribute_match_to_other_object(self, name, other_object):
         """ Check attribute name exists in other_object and is the same """
         A = getattr(self, name, False)
         B = getattr(other_object, name, False)

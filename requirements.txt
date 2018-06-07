@@ -1,8 +1,8 @@
 future
 dynesty
 corner
-numpy
-matplotlib>=1.4
+numpy>=1.9
+matplotlib>=2.0
 scipy
 gwpy
 pandas
