@@ -254,14 +254,13 @@ def get_open_strain_data(
         logging.info('Using cached data from {}'.format(filename))
         strain = TimeSeries.read(filename)
     else:
-        logging.info('Fetching open data ...')
         try:
+            logging.info('Fetching open data ...')
             strain = TimeSeries.fetch_open_data(name, t1, t2, **kwargs)
             logging.info('Saving data to {}'.format(filename))
             strain.write(filename)
         except urllib.error.URLError:
-            logging.warning("Can't fetch data for {}".format(name))
-            strain = None
+            raise ValueError("Can't fetch {} data.".format(name))
     return strain
 
 
