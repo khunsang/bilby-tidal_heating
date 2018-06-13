@@ -261,6 +261,7 @@ def get_open_strain_data(
             strain.write(filename)
         except urllib.error.URLError:
             logging.warning("Can't fetch data for {}".format(name))
+            strain = None
     return strain
 
 
