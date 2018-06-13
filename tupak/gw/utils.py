@@ -2,6 +2,7 @@ import logging
 import os
 
 import numpy as np
+import urllib
 from gwpy.signal import filter_design
 from gwpy.timeseries import TimeSeries
 from scipy import signal
@@ -254,9 +255,12 @@ def get_open_strain_data(
         strain = TimeSeries.read(filename)
     else:
         logging.info('Fetching open data ...')
-        strain = TimeSeries.fetch_open_data(name, t1, t2, **kwargs)
-        logging.info('Saving data to {}'.format(filename))
-        strain.write(filename)
+        try:
+            strain = TimeSeries.fetch_open_data(name, t1, t2, **kwargs)
+            logging.info('Saving data to {}'.format(filename))
+            strain.write(filename)
+        except urllib.error.URLError:
+            logging.warning("Can't fetch data for {}".format(name))
     return strain
 
 
