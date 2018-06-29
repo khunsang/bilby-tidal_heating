@@ -9,6 +9,12 @@ except ImportError:
     logging.warning("You do not have lalsuite installed currently. You will "
                     " not be able to use some of the prebuilt functions.")
 
+try:
+    import gwsurrogate as gwsurrogate
+except ImportError:
+    logging.warning("You do not have gwsurrogate installed currently. You "
+                    "will not be able to use some of the prebuilt functions.")
+
 from tupak.core import utils
 
 
@@ -110,19 +116,19 @@ def lal_binary_black_hole(
 
 
 def sinegaussian(frequency_array, hrss, Q, frequency, ra, dec, geocent_time, psi):
-    tau = Q / (np.sqrt(2.0)*np.pi*frequency)
-    temp = Q / (4.0*np.sqrt(np.pi)*frequency)
+    tau = Q / (np.sqrt(2.0) * np.pi * frequency)
+    temp = Q / (4.0 * np.sqrt(np.pi) * frequency)
     t = geocent_time
     fm = frequency_array - frequency
     fp = frequency_array + frequency
 
-    h_plus = ((hrss / np.sqrt(temp * (1+np.exp(-Q**2))))
-              * ((np.sqrt(np.pi)*tau)/2.0)
+    h_plus = ((hrss / np.sqrt(temp * (1 + np.exp(-Q**2))))
+              * ((np.sqrt(np.pi) * tau) / 2.0)
               * (np.exp(-fm**2 * np.pi**2 * tau**2)
                   + np.exp(-fp**2 * np.pi**2 * tau**2)))
 
-    h_cross = (-1j*(hrss / np.sqrt(temp * (1-np.exp(-Q**2))))
-               * ((np.sqrt(np.pi)*tau)/2.0)
+    h_cross = (-1j * (hrss / np.sqrt(temp * (1 - np.exp(-Q**2))))
+               * ((np.sqrt(np.pi) * tau) / 2.0)
                * (np.exp(-fm**2 * np.pi**2 * tau**2)
                   - np.exp(-fp**2 * np.pi**2 * tau**2)))
 
@@ -140,8 +146,8 @@ def supernova(
     # waveform in file at 10kpc
     scaling = 1e-3 * (10.0 / luminosity_distance)
 
-    h_plus = scaling * (realhplus + 1.0j*imaghplus)
-    h_cross = scaling * (realhcross + 1.0j*imaghcross)
+    h_plus = scaling * (realhplus + 1.0j * imaghplus)
+    h_cross = scaling * (realhcross + 1.0j * imaghcross)
     return {'plus': h_plus, 'cross': h_cross}
 
 
@@ -153,18 +159,40 @@ def supernova_pca_model(
     realPCs = kwargs['realPCs']
     imagPCs = kwargs['imagPCs']
 
-    pc1 = realPCs[:, 0] + 1.0j*imagPCs[:, 0]
-    pc2 = realPCs[:, 1] + 1.0j*imagPCs[:, 1]
-    pc3 = realPCs[:, 2] + 1.0j*imagPCs[:, 2]
-    pc4 = realPCs[:, 3] + 1.0j*imagPCs[:, 3]
-    pc5 = realPCs[:, 4] + 1.0j*imagPCs[:, 5]
+    pc1 = realPCs[:, 0] + 1.0j * imagPCs[:, 0]
+    pc2 = realPCs[:, 1] + 1.0j * imagPCs[:, 1]
+    pc3 = realPCs[:, 2] + 1.0j * imagPCs[:, 2]
+    pc4 = realPCs[:, 3] + 1.0j * imagPCs[:, 3]
+    pc5 = realPCs[:, 4] + 1.0j * imagPCs[:, 5]
 
     # file at 10kpc
     scaling = 1e-23 * (10.0 / luminosity_distance)
 
-    h_plus = scaling * (pc_coeff1*pc1 + pc_coeff2*pc2 + pc_coeff3*pc3
-                        + pc_coeff4*pc4 + pc_coeff5*pc5)
-    h_cross = scaling * (pc_coeff1*pc1 + pc_coeff2*pc2 + pc_coeff3*pc3
-                         + pc_coeff4*pc4 + pc_coeff5*pc5)
+    h_plus = scaling * (pc_coeff1 * pc1 + pc_coeff2 * pc2 + pc_coeff3 * pc3
+                        + pc_coeff4 * pc4 + pc_coeff5 * pc5)
+    h_cross = scaling * (pc_coeff1 * pc1 + pc_coeff2 * pc2 + pc_coeff3 * pc3
+                         + pc_coeff4 * pc4 + pc_coeff5 * pc5)
 
     return {'plus': h_plus, 'cross': h_cross}
+
+
+def NRSur4d2s_binary_black_hole(
+        frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1, phi_12, a_2, tilt_2, phi_jl,
+        iota, phase, waveform_approximant, reference_frequency, ra, dec, geocent_time, psi):
+    """ A Binary Black Hole waveform model using gwsurrogate and NRSur4d2s_FDROM_grid12 waveforms. See 
+    https://zenodo.org/record/1215824#.WzMwE-EzaV6 
+    for the waveform, and example iPython notebook. """
+    if mass_2 > mass_1:
+        return None
+
+    if tilt_1 == 0 and tilt_2 == 0:
+        spin_1x = 0
+        spin_1y = 0
+        spin_1z = a_1
+        spin_2x = 0
+        spin_2y = 0
+        spin_2z = a_2
+    else:
+        iota, spin_1x, spin_1y, spin_1z, spin_2x, spin_2y, spin_2z = \
+            lalsim.SimInspiralTransformPrecessingNewInitialConditions(iota, phi_jl, tilt_1, tilt_2, phi_12, a_1, a_2,
+                                                                      mass_1 * utils.solar_mass, mass_2 * utils.solar_mass, reference_frequency, phase)
