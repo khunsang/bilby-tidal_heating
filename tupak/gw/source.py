@@ -10,7 +10,8 @@ except ImportError:
                     " not be able to use some of the prebuilt functions.")
 
 try:
-    import gwsurrogate as gwsurrogate
+    import NRSur7dq2
+
 except ImportError:
     logging.warning("You do not have gwsurrogate installed currently. You "
                     "will not be able to use some of the prebuilt functions.")
@@ -176,14 +177,19 @@ def supernova_pca_model(
     return {'plus': h_plus, 'cross': h_cross}
 
 
-def NRSur4d2s_binary_black_hole(
-        frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1, phi_12, a_2, tilt_2, phi_jl,
-        iota, phase, waveform_approximant, reference_frequency, ra, dec, geocent_time, psi):
-    """ A Binary Black Hole waveform model using gwsurrogate and NRSur4d2s_FDROM_grid12 waveforms. See 
+def NRSur7dq2_binary_black_hole(
+        time_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1, phi_12, a_2, tilt_2, phi_jl,
+        iota, phase, reference_frequency, ra, dec, geocent_time, psi):
+    """ A Binary Black Hole waveform model using gwsurrogate and NRSur7dq2waveforms. See 
     https://zenodo.org/record/1215824#.WzMwE-EzaV6 
-    for the waveform, and example iPython notebook. """
-    if mass_2 > mass_1:
-        return None
+    for the waveform, and example iPython notebook.
+    Note that this is a time domain waveform model!
+    """
+    sur = NRSur7dq2.NRSurrogate7dq2(
+        '/home/artemis/src/pycbc/lib/python2.7/site-packages/NRSur7dq2/NRSur7dq2.h5')
+
+    q = mass_1 / mass_2
+    Mtot = mass_1 + mass_2
 
     if tilt_1 == 0 and tilt_2 == 0:
         spin_1x = 0
@@ -194,5 +200,16 @@ def NRSur4d2s_binary_black_hole(
         spin_2z = a_2
     else:
         iota, spin_1x, spin_1y, spin_1z, spin_2x, spin_2y, spin_2z = \
-            lalsim.SimInspiralTransformPrecessingNewInitialConditions(iota, phi_jl, tilt_1, tilt_2, phi_12, a_1, a_2,
-                                                                      mass_1 * utils.solar_mass, mass_2 * utils.solar_mass, reference_frequency, phase)
+            lalsim.SimInspiralTransformPrecessingNewInitialConditions(
+                iota, phi_jl, tilt_1, tilt_2, phi_12, a_1, a_2, mass_1 * utils.solar_mass, mass_2 * utils.solar_mass, reference_frequency, phase)
+
+    chi1 = np.array([spin_1x, spin_1y, spin_1z])
+    chi2 = np.array([spin_2x, spin_2y, spin_2z])
+
+    h = sur(q, chi1, chi2, t=time_array, theta=iota, phi=phase,
+            f_ref=reference_frequency, MTot=Mtot, distance=luminosity_distance)
+
+    hplus = np.real(h)
+    hcross = np.imag(h)
+
+    return {'plus': hplus, 'cross': hcross}
