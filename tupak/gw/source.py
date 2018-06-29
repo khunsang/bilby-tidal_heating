@@ -185,8 +185,7 @@ def NRSur7dq2_binary_black_hole(
     for the waveform, and example iPython notebook.
     Note that this is a time domain waveform model!
     """
-    sur = NRSur7dq2.NRSurrogate7dq2(
-        '/home/artemis/src/pycbc/lib/python2.7/site-packages/NRSur7dq2/NRSur7dq2.h5')
+    sur = NRSur7dq2.NRSurrogate7dq2(NRSur7dq2.__path__[0] + '/NRSur7dq2.h5')
 
     q = mass_1 / mass_2
     Mtot = mass_1 + mass_2
@@ -205,6 +204,10 @@ def NRSur7dq2_binary_black_hole(
 
     chi1 = np.array([spin_1x, spin_1y, spin_1z])
     chi2 = np.array([spin_2x, spin_2y, spin_2z])
+
+    # TODO Better way to handle the times is to let t=None, and then
+    # extrapolate over the output data, ensuring that if time_array[i] is not
+    # in sur.t_coorb, then the value is set to zero? Surely this is better?
 
     h = sur(q, chi1, chi2, t=time_array, theta=iota, phi=phase,
             f_ref=reference_frequency, MTot=Mtot, distance=luminosity_distance)
