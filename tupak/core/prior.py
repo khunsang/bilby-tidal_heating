@@ -1036,3 +1036,44 @@ class FromFile(Interped):
     def __repr__(self):
         """Call to helper method in the super class."""
         return Prior._subclass_repr_helper(self, subclass_args=['id'])
+
+
+class FromSamples(Interped):
+
+    def __init__(self, samples, minimum=None, maximum=None, name=None, latex_label=None):
+        """
+        Turn samples from a distribution into an object that can again be sampled.
+
+        This may be useful for taking posterior samples from a previous event to create
+        a new prior distribution.
+
+        Note: this is only valid in the limit of having a large number of samples.
+
+        Parameters
+        ----------
+        samples: array_like
+            Samples from the probability distribution
+        minimum: float
+            See superclass
+        maximum: float
+            See superclass
+        name: str
+            See superclass
+        latex_label: str
+            See superclass
+        """
+        if minimum is None:
+            minimum = min(samples)
+        if maximum is None:
+            maximum = max(samples)
+        xx = np.linspace(minimum, maximum, min(100, len(samples) // 1000))
+        cumulative_distribution = np.array([sum(samples < x) / len(samples) for x in xx])
+        yy = np.gradient(cumulative_distribution, xx)
+
+        Interped.__init__(self, xx=xx, yy=yy, minimum=minimum, maximum=maximum,
+                          name=name, latex_label=latex_label)
+        self.samples = samples
+
+    def __repr__(self):
+        """Call to helper method in the super class."""
+        return Prior._subclass_repr_helper(self, subclass_args=['samples'])
