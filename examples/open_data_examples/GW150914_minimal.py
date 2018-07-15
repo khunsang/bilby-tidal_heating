@@ -1,8 +1,7 @@
-#!/bin/python
+#!/usr/bin/env python
 """
 Tutorial to demonstrate the minimum number of steps required to run parameter
-stimation on GW150914 using open data.
-
+estimation on GW150914 using open data.
 """
 import tupak
 
