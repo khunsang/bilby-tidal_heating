@@ -2,6 +2,7 @@ import inspect
 
 from tupak.core import utils
 import numpy as np
+from . import source, conversion
 
 
 class WaveformGenerator(object):
@@ -80,14 +81,13 @@ class WaveformGenerator(object):
         """
         added_keys = []
         if self.parameter_conversion is not None:
-            self.parameters, added_keys = self.parameter_conversion(self.parameters,
-                                                                    self.non_standard_sampling_parameter_keys)
+            self.parameters, added_keys = self.parameter_conversion(
+                self.parameters, self.non_standard_sampling_parameter_keys)
 
         if self.frequency_domain_source_model is not None:
             self.__full_source_model_keyword_arguments.update(self.parameters)
             model_frequency_strain = self.frequency_domain_source_model(
-                self.frequency_array,
-                **self.__full_source_model_keyword_arguments)
+                self.frequency_array, **self.__full_source_model_keyword_arguments)
         elif self.time_domain_source_model is not None:
             model_frequency_strain = dict()
             self.__full_source_model_keyword_arguments.update(self.parameters)
@@ -96,8 +96,8 @@ class WaveformGenerator(object):
             if isinstance(time_domain_strain, np.ndarray):
                 return utils.nfft(time_domain_strain, self.sampling_frequency)
             for key in time_domain_strain:
-                model_frequency_strain[key], self.frequency_array = utils.nfft(time_domain_strain[key],
-                                                                               self.sampling_frequency)
+                model_frequency_strain[key], self.frequency_array =\
+                    utils.nfft(time_domain_strain[key], self.sampling_frequency)
         else:
             raise RuntimeError("No source model given")
 
@@ -259,3 +259,42 @@ class WaveformGenerator(object):
     def start_time(self, starting_time):
         self.__start_time = starting_time
         self.__time_array_updated = False
+
+
+class BinaryBlackHole(WaveformGenerator):
+
+    def __init__(self, duration=None, sampling_frequency=None, start_time=0,
+                 parameters=None, non_standard_sampling_parameter_keys=None,
+                 waveform_arguments=None):
+        """ A waveform generator
+
+        Parameters
+        ----------
+        sampling_frequency: float, optional
+            The sampling frequency
+        duration: float, optional
+            Time duration of data
+        start_time: float, optional
+            Starting time of the time array
+        parameters: dict, optional
+            Initial values for the parameters
+        non_standard_sampling_parameter_keys: list, optional
+            List of parameter name for *non-standard* sampling parameters.
+            These are the parameters which are not arguments of tupak.gw.source.lal_binary_black_hole
+        waveform_arguments: dict, optional
+            A dictionary of fixed keyword arguments to pass to either
+            `frequency_domain_source_model` or `time_domain_source_model`.
+
+        Note: the arguments of frequency_domain_source_model (except the first,
+        which is the frequencies at which to compute the strain) will be added to
+        the WaveformGenerator object and initialised to `None`.
+
+        """
+        if non_standard_sampling_parameter_keys is None:
+            non_standard_sampling_parameter_keys = list()
+        WaveformGenerator.__init__(
+            self, duration=duration, sampling_frequency=sampling_frequency, start_time=start_time,
+            frequency_domain_source_model=source.lal_binary_black_hole, parameters=parameters,
+            parameter_conversion=conversion.convert_to_lal_binary_black_hole_parameters,
+            non_standard_sampling_parameter_keys=non_standard_sampling_parameter_keys,
+            waveform_arguments=waveform_arguments)
