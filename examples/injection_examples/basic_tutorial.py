@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/env python
 """
 Tutorial to demonstrate running parameter estimation on a reduced parameter space for an injected signal.
 
@@ -19,7 +19,7 @@ sampling_frequency = 2048.
 # Specify the output directory and the name of the simulation.
 outdir = 'outdir'
 label = 'basic_tutorial'
-tupak.core.utils.setup_logger(outdir=outdir, label=label)
+tupak.utils.setup_logger(outdir=outdir, label=label)
 
 # Set up a random seed for result reproducibility.  This is optional!
 np.random.seed(88170235)
@@ -36,18 +36,15 @@ waveform_arguments = dict(waveform_approximant='IMRPhenomPv2',
                           reference_frequency=50.)
 
 # Create the waveform_generator using a LAL BinaryBlackHole source function
-waveform_generator = tupak.WaveformGenerator(duration=duration,
-                                             sampling_frequency=sampling_frequency,
-                                             frequency_domain_source_model=tupak.gw.source.lal_binary_black_hole,
-                                             parameters=injection_parameters,
-                                             waveform_arguments=waveform_arguments)
+waveform_generator = tupak.gw.waveform_generator.BinaryBlackHole(
+    duration=duration, sampling_frequency=sampling_frequency, waveform_arguments=waveform_arguments)
 hf_signal = waveform_generator.frequency_domain_strain()
 
 # Set up interferometers.  In this case we'll use three interferometers (LIGO-Hanford (H1), LIGO-Livingston (L1),
 # and Virgo (V1)).  These default to their design sensitivity
-IFOs = [tupak.gw.detector.get_interferometer_with_fake_noise_and_injection(
-    name, injection_polarizations=hf_signal, injection_parameters=injection_parameters, duration=duration,
-    sampling_frequency=sampling_frequency, outdir=outdir) for name in ['H1', 'L1']]
+interferometers = tupak.gw.detector.InterferometerSet(['H1', 'L1', 'V1'])
+interferometers.set_strain_data_from_power_spectral_densities(sampling_frequency=sampling_frequency, duration=duration)
+interferometers.inject_signal(parameters=injection_parameters, waveform_generator=waveform_generator)
 
 # Set up prior, which is a dictionary
 # By default we will sample all terms in the signal models.  However, this will take a long time for the calculation,
@@ -64,9 +61,8 @@ for key in ['a_1', 'a_2', 'tilt_1', 'tilt_2', 'phi_12', 'phi_jl', 'psi', 'ra', '
     priors[key] = injection_parameters[key]
 
 # Initialise the likelihood by passing in the interferometer data (IFOs) and the waveoform generator
-likelihood = tupak.GravitationalWaveTransient(interferometers=IFOs, waveform_generator=waveform_generator,
-                                              time_marginalization=False, phase_marginalization=False,
-                                              distance_marginalization=False, prior=priors)
+likelihood = tupak.gw.likelihood.GravitationalWaveTransient(
+    interferometers=interferometers, waveform_generator=waveform_generator)
 
 # Run sampler.  In this case we're going to use the `dynesty` sampler
 result = tupak.run_sampler(likelihood=likelihood, priors=priors, sampler='dynesty', npoints=1000,

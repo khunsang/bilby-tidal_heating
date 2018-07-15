@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/env python
 """
 A script to demonstrate how to use your own source model
 """
@@ -15,7 +15,7 @@ duration = 1
 
 # Here we define out source model - this is the sine-Gaussian model in the
 # frequency domain.
-def sine_gaussian(f, A, f0, tau, phi0, geocent_time, ra, dec, psi):
+def sine_gaussian(f, A, f0, tau, phi0):
     arg = -(np.pi * tau * (f-f0))**2 + 1j * phi0
     plus = np.sqrt(np.pi) * A * tau * np.exp(arg) / 2.
     cross = plus * np.exp(1j*np.pi/2)
@@ -25,26 +25,25 @@ def sine_gaussian(f, A, f0, tau, phi0, geocent_time, ra, dec, psi):
 # We now define some parameters that we will inject and then a waveform generator
 injection_parameters = dict(A=1e-23, f0=100, tau=1, phi0=0, geocent_time=0,
                             ra=0, dec=0, psi=0)
-waveform_generator = tupak.gw.waveform_generator.WaveformGenerator(duration=duration,
-                                                                   sampling_frequency=sampling_frequency,
-                                                                   frequency_domain_source_model=sine_gaussian,
-                                                                   parameters=injection_parameters)
+waveform_generator = tupak.gw.waveform_generator.WaveformGenerator(
+    duration=duration, sampling_frequency=sampling_frequency, frequency_domain_source_model=sine_gaussian,
+    parameters=injection_parameters)
+
 hf_signal = waveform_generator.frequency_domain_strain()
 
 # Set up interferometers.
-IFOs = [tupak.gw.detector.get_interferometer_with_fake_noise_and_injection(
-    name, injection_polarizations=hf_signal,
-    injection_parameters=injection_parameters, duration=duration,
-    sampling_frequency=sampling_frequency, outdir=outdir)
-    for name in ['H1', 'L1', 'V1']]
+interferometers = tupak.gw.detector.InterferometerSet(['H1', 'L1', 'V1'])
+interferometers.set_strain_data_from_power_spectral_densities(sampling_frequency=sampling_frequency, duration=duration)
+interferometers.inject_signal(parameters=injection_parameters, waveform_generator=waveform_generator)
 
 # Here we define the priors for the search. We use the injection parameters
 # except for the amplitude, f0, and geocent_time
 prior = injection_parameters.copy()
-prior['A'] = tupak.core.prior.PowerLaw(alpha=-1, minimum=1e-25, maximum=1e-21, name='A')
-prior['f0'] = tupak.core.prior.Uniform(90, 110, 'f')
+prior['A'] = tupak.prior.PowerLaw(alpha=-1, minimum=1e-25, maximum=1e-21, name='A')
+prior['f0'] = tupak.prior.Uniform(minimum=90, maximum=110, name='f', latex_label='$f$')
 
-likelihood = tupak.gw.likelihood.GravitationalWaveTransient(IFOs, waveform_generator)
+likelihood = tupak.gw.likelihood.GravitationalWaveTransient(
+    interferometers=interferometers, waveform_generator=waveform_generator)
 
 result = tupak.core.sampler.run_sampler(
     likelihood, prior, sampler='dynesty', outdir=outdir, label=label,

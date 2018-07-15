@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/env python
 """
 Tutorial to demonstrate running parameter estimation on a sine gaussian injected signal.
 
@@ -21,41 +21,36 @@ np.random.seed(170801)
 
 # We are going to inject a sine gaussian waveform.  We first establish a dictionary of parameters that
 # includes all of the different waveform parameters
-injection_parameters = dict(hrss = 1e-22, Q = 5.0, frequency = 200.0, ra = 1.375, dec = -1.2108, 
-                             geocent_time = 1126259642.413, psi= 2.659)
+injection_parameters = dict(hrss=1e-22, Q=5.0, frequency=200.0, ra=1.375, dec=-1.2108,
+                            geocent_time=1126259642.413, psi=2.659)
 
 # Create the waveform_generator using a sine Gaussian source function
-waveform_generator = tupak.gw.waveform_generator.WaveformGenerator(duration=duration,
-                                                                   sampling_frequency=sampling_frequency,
-                                                                   frequency_domain_source_model=tupak.gw.source.sinegaussian,
-                                                                   parameters=injection_parameters)
-hf_signal = waveform_generator.frequency_domain_strain()
+waveform_generator = tupak.gw.waveform_generator.WaveformGenerator(
+    duration=duration, sampling_frequency=sampling_frequency,
+    frequency_domain_source_model=tupak.gw.source.sinegaussian)
 
 # Set up interferometers.  In this case we'll use three interferometers (LIGO-Hanford (H1), LIGO-Livingston (L1),
 # and Virgo (V1)).  These default to their design sensitivity
-IFOs = [tupak.gw.detector.get_interferometer_with_fake_noise_and_injection(
-    name, injection_polarizations=hf_signal, injection_parameters=injection_parameters, duration=duration,
-    sampling_frequency=sampling_frequency, outdir=outdir) for name in ['H1', 'L1', 'V1']]
+interferometers = tupak.gw.detector.InterferometerSet(['H1', 'L1', 'V1'])
+interferometers.set_strain_data_from_power_spectral_densities(sampling_frequency=sampling_frequency, duration=duration)
+interferometers.inject_signal(parameters=injection_parameters, waveform_generator=waveform_generator)
 
 # Set up prior, which is a dictionary
-priors = dict()
 # By default we will sample all terms in the signal models.  However, this will take a long time for the calculation,
 # so for this example we will set almost all of the priors to be equall to their injected values.  This implies the
 # prior is a delta function at the true, injected value.  In reality, the sampler implementation is smart enough to
 # not sample any parameter that has a delta-function prior.
-for key in ['psi', 'ra', 'dec', 'geocent_time']:
-    priors[key] = injection_parameters[key]
+priors = injection_parameters.copy()
 
 # The above list does *not* include frequency and Q, which means those are the parameters
 # that will be included in the sampler.  If we do nothing, then the default priors get used.
-#priors['Q'] = tupak.prior.create_default_prior(name='Q')
-#priors['frequency'] = tupak.prior.create_default_prior(name='frequency')
 priors['Q'] = tupak.core.prior.Uniform(2, 50, 'Q')
 priors['frequency'] = tupak.core.prior.Uniform(30, 1000, 'frequency')
 priors['hrss'] = tupak.core.prior.Uniform(1e-23, 1e-21, 'hrss')
 
 # Initialise the likelihood by passing in the interferometer data (IFOs) and the waveoform generator
-likelihood = tupak.gw.likelihood.GravitationalWaveTransient(interferometers=IFOs, waveform_generator=waveform_generator)
+likelihood = tupak.gw.likelihood.GravitationalWaveTransient(
+    interferometers=interferometers, waveform_generator=waveform_generator)
 
 # Run sampler.  In this case we're going to use the `dynesty` sampler
 result = tupak.core.sampler.run_sampler(likelihood=likelihood, priors=priors, sampler='dynesty', npoints=1000,
