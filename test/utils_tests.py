@@ -211,10 +211,10 @@ class TestCoupledTimeAndFrequencySeriesFromFrequencySeries(unittest.TestCase):
                                                                       duration=self.duration,
                                                                       starting_time=self.test_series.start_time)))
 
-    # def test_frequency_array_correct_from_frequency_series(self):
-    #     self.assertTrue(np.array_equal(self.test_series.frequency_series,
-    #                                    tupak.utils.create_frequency_series(sampling_frequency=self.sampling_frequency,
-    #                                                                        duration=self.duration)))
+    def test_frequency_array_correct_from_frequency_series(self):
+        self.assertTrue(np.array_equal(self.test_series.frequency_series,
+                                       tupak.utils.create_frequency_series(sampling_frequency=self.sampling_frequency,
+                                                                           duration=self.duration)))
 
 if __name__ == '__main__':
     unittest.main()
