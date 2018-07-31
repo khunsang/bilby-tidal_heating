@@ -36,9 +36,9 @@ class TestCoupledTimeAndFrequencySeriesFromInit(unittest.TestCase):
         self.start_time = 4
         self.sampling_frequency = 1000
         self.duration = 2
-        self.test_series = tupak.utils.CoupledTimeAndFrequencySeries(start_time=self.start_time,
-                                                                     sampling_frequency=self.sampling_frequency,
-                                                                     duration=self.duration)
+        self.test_series = tupak.utils.CoupledTimesFrequencies(start_time=self.start_time,
+                                                               sampling_frequency=self.sampling_frequency,
+                                                               duration=self.duration)
 
     def tearDown(self):
         del self.test_series
@@ -56,13 +56,13 @@ class TestCoupledTimeAndFrequencySeriesFromInit(unittest.TestCase):
         self.assertEqual(self.sampling_frequency, self.test_series.sampling_frequency)
 
     def test_time_array_correct_from_init(self):
-        self.assertTrue(np.array_equal(self.test_series.time_series,
+        self.assertTrue(np.array_equal(self.test_series.times,
                                        tupak.utils.create_time_series(sampling_frequency=self.sampling_frequency,
                                                                       duration=self.duration,
                                                                       starting_time=self.start_time)))
 
     def test_frequency_array_correct_from_init(self):
-        self.assertTrue(np.array_equal(self.test_series.frequency_series,
+        self.assertTrue(np.array_equal(self.test_series.frequencies,
                                        tupak.utils.create_frequency_series(sampling_frequency=self.sampling_frequency,
                                                                            duration=self.duration)))
 
@@ -73,9 +73,9 @@ class TestCoupledTimeAndFrequencySeriesSettingParameters(unittest.TestCase):
         self.start_time = 4
         self.sampling_frequency = 1000
         self.duration = 2
-        self.test_series = tupak.utils.CoupledTimeAndFrequencySeries(start_time=self.start_time,
-                                                                     sampling_frequency=self.sampling_frequency,
-                                                                     duration=self.duration)
+        self.test_series = tupak.utils.CoupledTimesFrequencies(start_time=self.start_time,
+                                                               sampling_frequency=self.sampling_frequency,
+                                                               duration=self.duration)
 
     def tearDown(self):
         del self.test_series
@@ -85,39 +85,39 @@ class TestCoupledTimeAndFrequencySeriesSettingParameters(unittest.TestCase):
 
     def test_change_start_time(self):
         self.test_series.start_time = 2
-        expected_series = tupak.utils.CoupledTimeAndFrequencySeries(sampling_frequency=self.sampling_frequency,
-                                                                    duration=self.duration,
-                                                                    start_time=2)
+        expected_series = tupak.utils.CoupledTimesFrequencies(sampling_frequency=self.sampling_frequency,
+                                                              duration=self.duration,
+                                                              start_time=2)
         self.assertEqual(expected_series, self.test_series)
 
     def test_change_duration(self):
         self.test_series.duration = 3
-        expected_series = tupak.utils.CoupledTimeAndFrequencySeries(sampling_frequency=self.sampling_frequency,
-                                                                    duration=3,
-                                                                    start_time=self.start_time)
+        expected_series = tupak.utils.CoupledTimesFrequencies(sampling_frequency=self.sampling_frequency,
+                                                              duration=3,
+                                                              start_time=self.start_time)
         self.assertEqual(expected_series, self.test_series)
 
     def test_change_sampling_frequency(self):
         self.test_series.sampling_frequency = 500
-        expected_series = tupak.utils.CoupledTimeAndFrequencySeries(sampling_frequency=500,
-                                                                    duration=self.duration,
-                                                                    start_time=self.start_time)
+        expected_series = tupak.utils.CoupledTimesFrequencies(sampling_frequency=500,
+                                                              duration=self.duration,
+                                                              start_time=self.start_time)
         self.assertEqual(expected_series, self.test_series)
 
 
 class TestCoupledTimeAndFrequencySeriesSettingTimeSeries(unittest.TestCase):
 
     def setUp(self):
-        self.test_series = tupak.utils.CoupledTimeAndFrequencySeries(start_time=4,
-                                                                     sampling_frequency=1000,
-                                                                     duration=2)
+        self.test_series = tupak.utils.CoupledTimesFrequencies(start_time=4,
+                                                               sampling_frequency=1000,
+                                                               duration=2)
         self.expected_start_time = 1
         self.expected_sampling_frequency = 300
         self.expected_duration = 5
         self.expected_frequency_series = \
             tupak.utils.create_frequency_series(sampling_frequency=self.expected_sampling_frequency,
                                                 duration=self.expected_duration)
-        self.test_series.time_series = \
+        self.test_series.times = \
             tupak.utils.create_time_series(duration=self.expected_duration,
                                            sampling_frequency=self.expected_sampling_frequency,
                                            starting_time=self.expected_start_time)
@@ -139,20 +139,20 @@ class TestCoupledTimeAndFrequencySeriesSettingTimeSeries(unittest.TestCase):
         self.assertAlmostEqual(self.expected_duration, self.test_series.duration, places=2)
 
     def test_change_time_series_sets_frequency_array(self):
-        _ = self.test_series.frequency_series
-        self.assertTrue(np.allclose(self.test_series.frequency_series, self.expected_frequency_series, atol=0.1))
+        _ = self.test_series.frequencies
+        self.assertTrue(np.allclose(self.test_series.frequencies, self.expected_frequency_series, atol=0.1))
 
 
 class TestCoupledTimeAndFrequencySeriesSettingFrequencySeries(unittest.TestCase):
 
     def setUp(self):
         self.expected_start_time = 4
-        self.test_series = tupak.utils.CoupledTimeAndFrequencySeries(start_time=self.expected_start_time,
-                                                                     sampling_frequency=400,
-                                                                     duration=6)
+        self.test_series = tupak.utils.CoupledTimesFrequencies(start_time=self.expected_start_time,
+                                                               sampling_frequency=400,
+                                                               duration=6)
         self.expected_sampling_frequency = 1000
         self.expected_duration = 2
-        self.test_series.frequency_series = \
+        self.test_series.frequencies = \
             tupak.utils.create_frequency_series(sampling_frequency=self.expected_sampling_frequency,
                                                 duration=self.expected_duration)
         self.expected_time_series = \
@@ -177,7 +177,7 @@ class TestCoupledTimeAndFrequencySeriesSettingFrequencySeries(unittest.TestCase)
         self.assertAlmostEqual(self.expected_duration, self.test_series.duration)
 
     def test_change_frequency_series_sets_time_series(self):
-        self.assertTrue(np.allclose(self.test_series.time_series, self.expected_time_series, atol=0.1))
+        self.assertTrue(np.allclose(self.test_series.times, self.expected_time_series, atol=0.1))
 
 
 class TestCoupledTimeAndFrequencySeriesFromFrequencySeries(unittest.TestCase):
@@ -187,8 +187,8 @@ class TestCoupledTimeAndFrequencySeriesFromFrequencySeries(unittest.TestCase):
         self.duration = 2
         self.frequency_series = tupak.utils.create_frequency_series(sampling_frequency=self.sampling_frequency,
                                                                     duration=self.duration)
-        self.test_series = tupak.utils.CoupledTimeAndFrequencySeries.\
-            from_frequency_series(frequency_series=self.frequency_series)
+        self.test_series = tupak.utils.CoupledTimesFrequencies.\
+            from_frequencies(frequency_series=self.frequency_series)
 
     def tearDown(self):
         del self.frequency_series
@@ -206,7 +206,7 @@ class TestCoupledTimeAndFrequencySeriesFromFrequencySeries(unittest.TestCase):
         self.assertAlmostEqual(self.sampling_frequency, self.test_series.sampling_frequency, delta=1)
 
     def test_time_array_correct_from_frequency_series(self):
-        self.assertTrue(np.array_equal(self.test_series.time_series,
+        self.assertTrue(np.array_equal(self.test_series.times,
                                        tupak.utils.create_time_series(sampling_frequency=self.sampling_frequency,
                                                                       duration=self.duration,
                                                                       starting_time=self.test_series.start_time)))

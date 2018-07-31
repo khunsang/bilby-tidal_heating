@@ -16,30 +16,30 @@ solar_mass = 1.98855 * 1e30
 radius_of_earth = 6371 * 1e3  # metres
 
 
-class CoupledTimeAndFrequencySeries(object):
+class CoupledTimesFrequencies(object):
 
     def __init__(self, start_time, duration, sampling_frequency):
         self.__start_time = start_time
         self.__duration = duration
         self.__sampling_frequency = sampling_frequency
-        self.__frequency_series = None
-        self.__time_series = None
+        self.__frequencies = None
+        self.__times = None
         self.__start_time_updated = True
         self.__duration_updated = True
         self.__sampling_frequency_updated = True
-        self.__frequency_series_updated = False
-        self.__time_series_updated = False
+        self.__frequencies_updated = False
+        self.__times_updated = False
 
     @staticmethod
-    def from_frequency_series(frequency_series):
-        result = CoupledTimeAndFrequencySeries(0, 0, 0)
-        result.frequency_series = frequency_series
+    def from_frequencies(frequency_series):
+        result = CoupledTimesFrequencies(0, 0, 0)
+        result.frequencies = frequency_series
         return result
 
     @staticmethod
-    def from_time_series(time_series):
-        result = CoupledTimeAndFrequencySeries(0, 0, 0)
-        result.time_series = time_series
+    def from_times(time_series):
+        result = CoupledTimesFrequencies(0, 0, 0)
+        result.times = time_series
         return result
 
     @property
@@ -57,21 +57,21 @@ class CoupledTimeAndFrequencySeries(object):
     def __update_start_time(self):
         if self.__start_time_updated:
             pass
-        elif self.__time_series_updated:
+        elif self.__times_updated:
             self.__update_start_time_from_time_series()
         else:
             self.__start_time = 0
             self.__start_time_updated = True
 
     def __update_start_time_from_time_series(self):
-        self.__start_time = self.__time_series[0]
+        self.__start_time = self.__times[0]
         self.__start_time_updated = True
 
     @start_time.setter
     def start_time(self, start_time):
         self.__start_time = start_time
         self.__start_time_updated = True
-        self.__time_series_updated = False
+        self.__times_updated = False
 
     @property
     def duration(self):
@@ -88,19 +88,19 @@ class CoupledTimeAndFrequencySeries(object):
     def __update_duration(self):
         if self.__duration_updated:
             pass
-        elif self.__frequency_series_updated:
+        elif self.__frequencies_updated:
             self.__update_duration_from_frequency_series()
-        elif self.__time_series_updated:
+        elif self.__times_updated:
             self.__update_duration_from_time_series()
         else:
             raise RuntimeError("No valid value for the duration could be derived")
 
     def __update_duration_from_time_series(self):
-        _, self.__duration = get_sampling_frequency_and_duration_from_time_array(self.time_series)
+        _, self.__duration = get_sampling_frequency_and_duration_from_time_array(self.times)
         self.__duration_updated = True
 
     def __update_duration_from_frequency_series(self):
-        _, self.__duration = get_sampling_frequency_and_duration_from_frequency_array(self.frequency_series)
+        _, self.__duration = get_sampling_frequency_and_duration_from_frequency_array(self.frequencies)
         self.__duration_updated = True
 
     @duration.setter
@@ -124,20 +124,20 @@ class CoupledTimeAndFrequencySeries(object):
     def __update_sampling_frequency(self):
         if self.__sampling_frequency_updated:
             pass
-        elif self.__frequency_series_updated:
+        elif self.__frequencies_updated:
             self.__update_sampling_frequency_from_frequency_array()
-        elif self.__time_series_updated:
+        elif self.__times_updated:
             self.__update_sampling_frequency_from_time_array()
         else:
             raise RuntimeError("No valid value for the sampling_frequency could be derived.")
 
     def __update_sampling_frequency_from_time_array(self):
-        self.__sampling_frequency, _ = get_sampling_frequency_and_duration_from_time_array(self.time_series)
+        self.__sampling_frequency, _ = get_sampling_frequency_and_duration_from_time_array(self.times)
         self.__sampling_frequency_updated = True
 
     def __update_sampling_frequency_from_frequency_array(self):
         self.__sampling_frequency, _ = get_sampling_frequency_and_duration_from_frequency_array(
-            self.frequency_series)
+            self.frequencies)
         self.__sampling_frequency_updated = True
 
     @sampling_frequency.setter
@@ -147,7 +147,7 @@ class CoupledTimeAndFrequencySeries(object):
         self.__reset_arrays()
 
     @property
-    def time_series(self):
+    def times(self):
         """ Time array for the data set. Automatically updates if start_time,
         sampling_frequency, or duration are updated.
 
@@ -155,67 +155,67 @@ class CoupledTimeAndFrequencySeries(object):
         -------
         array_like: The time array
         """
-        self.__update_time_series()
-        return self.__time_series
+        self.__update_times()
+        return self.__times
 
-    def __update_time_series(self):
-        if self.__time_series_updated:
+    def __update_times(self):
+        if self.__times_updated:
             pass
         elif self.__sampling_frequency_updated and self.__duration_updated and self.__start_time_updated:
-            self.__update_time_series_from_parameters()
+            self.__update_times_from_parameters()
         else:
             raise RuntimeError("No valid value for the time_array could be derived.")
 
-    def __update_time_series_from_parameters(self):
+    def __update_times_from_parameters(self):
         self.__update_parameters()
-        self.__time_series = create_time_series(sampling_frequency=self.sampling_frequency,
-                                                duration=self.duration,
-                                                starting_time=self.start_time)
-        self.__time_series_updated = True
+        self.__times = create_time_series(sampling_frequency=self.sampling_frequency,
+                                          duration=self.duration,
+                                          starting_time=self.start_time)
+        self.__times_updated = True
 
-    @time_series.setter
-    def time_series(self, time_series):
-        self.__time_series = time_series
-        self.__time_series_updated = True
-        self.__frequency_series_updated = False
+    @times.setter
+    def times(self, time_series):
+        self.__times = time_series
+        self.__times_updated = True
+        self.__frequencies_updated = False
         self.__reset_parameters()
         self.__update_parameters()
-        self.__update_frequency_series()
+        self.__update_frequencies()
 
     @property
-    def frequency_series(self):
+    def frequencies(self):
         """ Frequency array for the data set. Automatically updates if sampling_frequency or duration are updated.
 
         Returns
         -------
         array_like: The frequency array
         """
-        self.__update_frequency_series()
-        return self.__frequency_series
+        self.__update_frequencies()
+        return self.__frequencies
 
-    def __update_frequency_series(self):
-        if self.__frequency_series_updated:
+    def __update_frequencies(self):
+        if self.__frequencies_updated:
             pass
         elif self.__sampling_frequency_updated and self.__duration_updated:
-            self.__update_frequency_series_from_parameters()
+            self.__update_frequencies_from_parameters()
         else:
             raise RuntimeError("No valid value for the frequency_array could be derived.")
 
-    def __update_frequency_series_from_parameters(self):
+    def __update_frequencies_from_parameters(self):
         self.__update_parameters()
-        self.__frequency_series = create_frequency_series(sampling_frequency=self.sampling_frequency,
+        self.__frequencies = create_frequency_series(sampling_frequency=self.sampling_frequency,
                                                      duration=self.duration)
-        self.__frequency_series_updated = True
+        self.__frequencies_updated = True
 
-    @frequency_series.setter
-    def frequency_series(self, frequency_series):
-        self.__frequency_series = frequency_series
-        self.__frequency_series_updated = True
-        self.__time_series_updated = False
+    @frequencies.setter
+    def frequencies(self, frequency_series):
+        self.__frequencies = frequency_series
+        self.__frequencies_updated = True
+        self.__times_updated = False
         self.__reset_parameters()
         self.__start_time_updated = True
         self.__update_parameters()
-        self.__update_time_series()
+        self.__update_times()
 
     def __reset_parameters(self):
         self.__sampling_frequency_updated = False
@@ -228,15 +228,15 @@ class CoupledTimeAndFrequencySeries(object):
         self.__update_start_time()
 
     def __reset_arrays(self):
-        self.__time_series_updated = False
-        self.__frequency_series_updated = False
+        self.__times_updated = False
+        self.__frequencies_updated = False
 
     def __eq__(self, other):
         if self.sampling_frequency != other.sampling_frequency \
                 or self.start_time != other.start_time \
                 or self.duration != other.duration \
-                or any(self.time_series != other.time_series) \
-                or any(self.frequency_series != other.frequency_series):
+                or any(self.times != other.times) \
+                or any(self.frequencies != other.frequencies):
             return False
         return True
 
