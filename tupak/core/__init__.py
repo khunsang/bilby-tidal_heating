@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import tupak.core.data
 import tupak.core.likelihood
 import tupak.core.prior
 import tupak.core.result
