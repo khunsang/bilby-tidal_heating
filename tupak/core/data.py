@@ -27,6 +27,12 @@ class CoupledTimesFrequencies(object):
         result.times = time_series
         return result
 
+    @staticmethod
+    def from_parameters(start_time, duration, sampling_frequency):
+        if start_time is None or duration is None or sampling_frequency is None:
+            return CoupledTimesFrequencies(0, 0, 0)
+        return CoupledTimesFrequencies(start_time=start_time, duration=duration, sampling_frequency=sampling_frequency)
+
     @property
     def start_time(self):
         """ Allows one to set the start_time and automatically updates the time array.
