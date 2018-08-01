@@ -3,8 +3,7 @@ from __future__ import absolute_import, division
 import tupak
 import unittest
 import numpy as np
-
-import tupak.core.data
+import matplotlib.pyplot as plt
 
 
 class TestFFT(unittest.TestCase):
