@@ -303,62 +303,82 @@ class TestInterferometerStrainData(unittest.TestCase):
     def test_frequency_mask(self):
         self.minimum_frequency = 10
         self.maximum_frequency = 20
-        self.ifosd.set_from_frequency_domain_strain(
-            frequency_domain_strain=[0, 1, 2], frequency_array=[5, 15, 25])
-        self.assertTrue(np.array_equal(self.ifosd.frequency_mask, [False, True, False]))
+        with mock.patch('tupak.core.utils.create_frequency_series') as m:
+            m.return_value = [5, 15, 25]
+            self.ifosd.set_from_frequency_domain_strain(
+                frequency_domain_strain=[0, 1, 2], frequency_array=[5, 15, 25])
+            self.assertTrue(np.array_equal(self.ifosd.frequency_mask, [False, True, False]))
 
     def test_frequency_array_setting_direct(self):
-        self.ifosd.set_from_frequency_domain_strain(
-            frequency_domain_strain=[0, 1, 2], frequency_array=[5, 15, 25])
-        self.assertTrue(np.array_equal(self.ifosd.frequency_array, np.array([5, 15, 25])))
+        with mock.patch('tupak.core.utils.create_frequency_series') as m:
+            m.return_value = [5, 15, 25]
+            self.ifosd.set_from_frequency_domain_strain(
+                frequency_domain_strain=[0, 1, 2], frequency_array=[5, 15, 25])
+            self.assertTrue(np.array_equal(self.ifosd.frequency_array, np.array([5, 15, 25])))
 
     def test_duration_setting(self):
-        self.ifosd.set_from_frequency_domain_strain(
-            frequency_domain_strain=[0, 1, 2], frequency_array=[0, 1, 2])
-        self.assertTrue(self.ifosd.duration == 1)
+        with mock.patch('tupak.core.utils.create_frequency_series') as m:
+            m.return_value = [0, 1, 2]
+            self.ifosd.set_from_frequency_domain_strain(
+                frequency_domain_strain=[0, 1, 2], frequency_array=[0, 1, 2])
+            self.assertTrue(self.ifosd.duration == 1)
 
     def test_sampling_frequency_setting(self):
-        self.ifosd.set_from_frequency_domain_strain(
-            frequency_domain_strain=[0, 1, 2], frequency_array=[0, 1, 2])
-        self.assertTrue(self.ifosd.sampling_frequency == 6)
+        with mock.patch('tupak.core.utils.create_frequency_series') as n:
+            with mock.patch('tupak.core.utils.get_sampling_frequency_and_duration_from_frequency_array') as m:
+                m.return_value = 8, 456
+                n.return_value = [1, 2, 3]
+                self.ifosd.set_from_frequency_domain_strain(
+                    frequency_domain_strain=[0, 1, 2], frequency_array=[0, 1, 2])
+                self.assertEqual(8, self.ifosd.sampling_frequency)
 
     def test_frequency_array_setting(self):
         duration = 3
         sampling_frequency = 1
-        self.ifosd.set_from_frequency_domain_strain(
-            frequency_domain_strain=[0, 1, 2], duration=duration,
-            sampling_frequency=sampling_frequency)
-        self.assertTrue(np.array_equal(
-            self.ifosd.frequency_array,
-            tupak.core.utils.create_frequency_series(duration=duration,
-                                                     sampling_frequency=sampling_frequency)))
+        with mock.patch('tupak.core.utils.create_frequency_series') as m:
+            m.return_value = [1, 2, 3]
+            self.ifosd.set_from_frequency_domain_strain(
+                frequency_domain_strain=[0, 1, 2], duration=duration,
+                sampling_frequency=sampling_frequency)
+            self.assertTrue(np.array_equal(
+                self.ifosd.frequency_array,
+                tupak.core.utils.create_frequency_series(duration=duration,
+                                                         sampling_frequency=sampling_frequency)))
 
     def test_set_data_fails(self):
-        with self.assertRaises(ValueError):
-            self.ifosd.set_from_frequency_domain_strain(
-                frequency_domain_strain=[0, 1, 2])
+        with mock.patch('tupak.core.utils.create_frequency_series') as m:
+            m.return_value = [1, 2, 3]
+            with self.assertRaises(ValueError):
+                self.ifosd.set_from_frequency_domain_strain(
+                    frequency_domain_strain=[0, 1, 2])
 
     def test_set_data_fails_too_much(self):
-        with self.assertRaises(ValueError):
-            self.ifosd.set_from_frequency_domain_strain(
-                frequency_domain_strain=[0, 1, 2], frequency_array=[1, 2, 3],
-                duration=3, sampling_frequency=1)
+        with mock.patch('tupak.core.utils.create_frequency_series') as m:
+            m.return_value = [1, 2, 3]
+            with self.assertRaises(ValueError):
+                self.ifosd.set_from_frequency_domain_strain(
+                    frequency_domain_strain=[0, 1, 2], frequency_array=[1, 2, 3],
+                    duration=3, sampling_frequency=1)
 
     def test_start_time_init(self):
-        duration = 3
-        sampling_frequency = 1
-        self.ifosd.set_from_frequency_domain_strain(
-            frequency_domain_strain=[0, 1, 2], duration=duration,
-            sampling_frequency=sampling_frequency)
-        self.assertTrue(self.ifosd.start_time == 0)
+        with mock.patch('tupak.core.utils.create_frequency_series') as m:
+            m.return_value = [1, 2, 3]
+            duration = 3
+            sampling_frequency = 1
+            self.ifosd.set_from_frequency_domain_strain(
+                frequency_domain_strain=[0, 1, 2], duration=duration,
+                sampling_frequency=sampling_frequency)
+            self.assertTrue(self.ifosd.start_time == 0)
 
     def test_start_time_set(self):
-        duration = 3
-        sampling_frequency = 1
-        self.ifosd.set_from_frequency_domain_strain(
-            frequency_domain_strain=[0, 1, 2], duration=duration,
-            sampling_frequency=sampling_frequency, start_time=10)
-        self.assertTrue(self.ifosd.start_time == 10)
+        with mock.patch('tupak.core.utils.create_frequency_series') as m:
+            m.return_value = [1, 2, 3]
+            duration = 3
+            sampling_frequency = 1
+            self.ifosd.set_from_frequency_domain_strain(
+                frequency_domain_strain=[0, 1, 2], duration=duration,
+                sampling_frequency=sampling_frequency, start_time=10)
+            self.assertTrue(self.ifosd.start_time == 10)
 
     def test_time_array_frequency_array_consistency(self):
         duration = 1
