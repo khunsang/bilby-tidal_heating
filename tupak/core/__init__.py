@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, unicode_literals
 import tupak.core.likelihood
 import tupak.core.prior
 import tupak.core.result

@@ -1,3 +1,5 @@
+from __future__ import print_function, division, unicode_literals
+
 import os
 from distutils.version import LooseVersion
 import numpy as np
@@ -9,6 +11,16 @@ import matplotlib.pyplot as plt
 
 from tupak.core import utils
 from tupak.core.utils import logger
+
+
+def safe_unicode(obj, *args):
+    """ return the unicode representation of obj """
+    try:
+        return unicode(obj, *args)
+    except UnicodeDecodeError:
+        # obj is byte string
+        ascii_text = str(obj).encode('string_escape')
+        return unicode(ascii_text)
 
 
 def result_file_name(outdir, label):
@@ -71,7 +83,7 @@ class Result(dict):
         dict.__init__(self)
         if type(dictionary) is dict:
             for key in dictionary:
-                val = self._standardise_a_string(dictionary[key])
+                val = dictionary[key]
                 setattr(self, key, val)
 
     def __add__(self, other):
@@ -123,45 +135,21 @@ class Result(dict):
         else:
             return ''
 
-    @staticmethod
-    def _standardise_a_string(item):
-        """ When reading in data, ensure all strings are decoded correctly
-
-        Parameters
-        ----------
-        item: str
-
-        Returns
-        -------
-        str: decoded string
-        """
-        if type(item) in [bytes]:
-            return item.decode()
-        else:
-            return item
-
-    @staticmethod
-    def _standardise_strings(item):
-        """
-
-        Parameters
-        ----------
-        item: list
-            List of strings to be decoded
-
-        Returns
-        -------
-        list: list of decoded strings in item
-
-        """
-        if type(item) in [list]:
-            item = [Result._standardise_a_string(i) for i in item]
-        return item
+    def convert_all_ascii_to_unicode(self):
+        for k in self:
+            try:
+                if type(self[k]) in [list]:
+                    self[k.decode('utf8')] = [j.decode('utf8') for j in self[k]]
+                else:
+                    self[k.decode('utf8')] = self[k].decode('utf8')
+            except AttributeError:
+                pass
 
     def save_to_file(self):
         """ Writes the Result to a deepdish h5 file """
         file_name = result_file_name(self.outdir, self.label)
         utils.check_directory_exists_and_if_not_mkdir(self.outdir)
+        self.convert_all_ascii_to_unicode()
         if os.path.isfile(file_name):
             logger.debug(
                 'Renaming existing file {} to {}.old'.format(file_name,
@@ -271,7 +259,7 @@ class Result(dict):
             plot_density=False, plot_datapoints=True, fill_contours=True,
             max_n_ticks=3)
 
-        if LooseVersion(matplotlib.__version__) < "2.1":
+        if LooseVersion(matplotlib.__version__) < str("2.1"):
             defaults_kwargs['hist_kwargs'] = dict(normed=True)
         else:
             defaults_kwargs['hist_kwargs'] = dict(density=True)

@@ -1,4 +1,4 @@
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, unicode_literals
 
 import inspect
 import os
@@ -164,12 +164,12 @@ class Sampler(object):
         for key in self.priors:
             if isinstance(self.priors[key], Prior) \
                     and self.priors[key].is_fixed is False:
-                self.__search_parameter_keys.append(key)
+                self.__search_parameter_keys.append(key.decode('utf8'))
             elif isinstance(self.priors[key], Prior) \
                     and self.priors[key].is_fixed is True:
                 self.likelihood.parameters[key] = \
                     self.priors[key].sample()
-                self.__fixed_parameter_keys.append(key)
+                self.__fixed_parameter_keys.append(key.decode('utf8'))
 
         logger.info("Search parameters:")
         for key in self.__search_parameter_keys:
