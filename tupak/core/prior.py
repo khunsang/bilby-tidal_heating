@@ -9,6 +9,7 @@ import scipy.stats
 import os
 
 from tupak.core.utils import logger
+from tupak.core import utils
 
 
 class PriorSet(dict):
@@ -39,6 +40,7 @@ class PriorSet(dict):
             Output file naming scheme
         """
 
+        utils.check_directory_exists_and_if_not_mkdir(outdir)
         prior_file = os.path.join(outdir, "{}_prior.txt".format(label))
         logger.debug("Writing priors to {}".format(prior_file))
         with open(prior_file, "w") as outfile:
@@ -143,14 +145,9 @@ class PriorSet(dict):
         -------
         dict: Dictionary of the samples
         """
-        self.convert_floats_to_delta_functions()
-        samples = dict()
-        for key in self:
-            if isinstance(self[key], Prior):
-                samples[key] = self[key].sample(size=size)
-        return samples
+        return self.sample_subset(keys=self.keys(), size=size)
 
-    def sample_subset(self, keys=list(), size=None):
+    def sample_subset(self, keys=iter([]), size=None):
         """Draw samples from the prior set for parameters which are not a DeltaFunction
 
         Parameters
@@ -164,6 +161,7 @@ class PriorSet(dict):
         -------
         dict: Dictionary of the drawn samples
         """
+        self.convert_floats_to_delta_functions()
         samples = dict()
         for key in keys:
             if isinstance(self[key], Prior):
@@ -219,7 +217,7 @@ class PriorSet(dict):
         return [self[key].rescale(sample) for key, sample in zip(keys, theta)]
 
     def test_redundancy(self, key):
-        """Empty redundancy test, should be overwritten"""
+        """Empty redundancy test, should be overwritten in subclasses"""
         return False
 
 
@@ -257,6 +255,8 @@ def create_default_prior(name, default_priors_file=None):
 
 
 class Prior(object):
+
+    _default_latex_labels = dict()
 
     def __init__(self, name=None, latex_label=None, minimum=-np.inf, maximum=np.inf):
         """ Implements a Prior object
@@ -377,7 +377,7 @@ class Prior(object):
         """
         return self._subclass_repr_helper()
 
-    def _subclass_repr_helper(self, subclass_args=list()):
+    def _subclass_repr_helper(self, subclass_args=iter([])):
         """Helps out subclass _repr__ methods by creating a common template
 
         Parameters
@@ -459,8 +459,6 @@ class Prior(object):
         else:
             label = self.name
         return label
-
-    _default_latex_labels = dict()
 
 
 class DeltaFunction(Prior):
@@ -670,6 +668,10 @@ class LogUniform(PowerLaw):
         PowerLaw.__init__(self, name=name, latex_label=latex_label, minimum=minimum, maximum=maximum, alpha=-1)
         if self.minimum <= 0:
             logger.warning('You specified a uniform-in-log prior with minimum={}'.format(self.minimum))
+
+    def __repr__(self):
+        """Call to helper method in the super class."""
+        return Prior._subclass_repr_helper(self)
 
 
 class Cosine(Prior):
