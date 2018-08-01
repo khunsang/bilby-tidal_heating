@@ -1,5 +1,4 @@
-from tupak.core.utils import get_sampling_frequency_and_duration_from_time_array, \
-    get_sampling_frequency_and_duration_from_frequency_array, create_time_series, create_frequency_series
+import tupak.core.utils
 
 
 class CoupledTimesFrequencies(object):
@@ -82,11 +81,11 @@ class CoupledTimesFrequencies(object):
             raise RuntimeError("No valid value for the duration could be derived")
 
     def __update_duration_from_time_series(self):
-        _, self.__duration = get_sampling_frequency_and_duration_from_time_array(self.times)
+        _, self.__duration = tupak.core.utils.get_sampling_frequency_and_duration_from_time_array(self.times)
         self.__duration_updated = True
 
     def __update_duration_from_frequency_series(self):
-        _, self.__duration = get_sampling_frequency_and_duration_from_frequency_array(self.frequencies)
+        _, self.__duration = tupak.core.utils.get_sampling_frequency_and_duration_from_frequency_array(self.frequencies)
         self.__duration_updated = True
 
     @duration.setter
@@ -118,11 +117,12 @@ class CoupledTimesFrequencies(object):
             raise RuntimeError("No valid value for the sampling_frequency could be derived.")
 
     def __update_sampling_frequency_from_time_array(self):
-        self.__sampling_frequency, _ = get_sampling_frequency_and_duration_from_time_array(self.times)
+        self.__sampling_frequency, _ = tupak.core.utils.get_sampling_frequency_and_duration_from_time_array(self.times)
         self.__sampling_frequency_updated = True
 
     def __update_sampling_frequency_from_frequency_array(self):
-        self.__sampling_frequency, _ = get_sampling_frequency_and_duration_from_frequency_array(self.frequencies)
+        self.__sampling_frequency, _ = tupak.core.utils.get_sampling_frequency_and_duration_from_frequency_array(
+            self.frequencies)
         self.__sampling_frequency_updated = True
 
     @sampling_frequency.setter
@@ -153,9 +153,9 @@ class CoupledTimesFrequencies(object):
 
     def __update_times_from_parameters(self):
         self.__update_parameters()
-        self.__times = create_time_series(sampling_frequency=self.sampling_frequency,
-                                          duration=self.duration,
-                                          starting_time=self.start_time)
+        self.__times = tupak.core.utils.create_time_series(sampling_frequency=self.sampling_frequency,
+                                                           duration=self.duration,
+                                                           starting_time=self.start_time)
         self.__times_updated = True
 
     @times.setter
@@ -188,8 +188,8 @@ class CoupledTimesFrequencies(object):
 
     def __update_frequencies_from_parameters(self):
         self.__update_parameters()
-        self.__frequencies = create_frequency_series(sampling_frequency=self.sampling_frequency,
-                                                     duration=self.duration)
+        self.__frequencies = tupak.core.utils.create_frequency_series(sampling_frequency=self.sampling_frequency,
+                                                                      duration=self.duration)
         self.__frequencies_updated = True
 
     @frequencies.setter
