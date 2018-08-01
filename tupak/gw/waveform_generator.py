@@ -97,7 +97,7 @@ class WaveformGenerator(object):
                 return tupak.core.utils.nfft(time_domain_strain, self.sampling_frequency)
             for key in time_domain_strain:
                 model_frequency_strain[key], self.frequency_array = tupak.core.utils.nfft(time_domain_strain[key],
-                                                                               self.sampling_frequency)
+                                                                                          self.sampling_frequency)
         else:
             raise RuntimeError("No source model given")
 
