@@ -473,7 +473,7 @@ class InterferometerStrainData(object):
                                                               sampling_frequency=sampling_frequency,
                                                               start_time=start_time)
         elif time_array is not None:
-            self.time_array = time_array
+            self.time_array = np.array(time_array)
         elif sampling_frequency is None or duration is None:
             raise ValueError(
                 "You must provide both sampling_frequency and duration")
@@ -597,7 +597,7 @@ class InterferometerStrainData(object):
                                                           duration=duration,
                                                           sampling_frequency=sampling_frequency)
         elif frequency_array is not None:
-            self.frequency_array = frequency_array
+            self.frequency_array = np.array(frequency_array)
         elif sampling_frequency is None or duration is None:
             raise ValueError(
                 "You must provide both sampling_frequency and duration")
