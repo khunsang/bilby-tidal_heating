@@ -235,7 +235,7 @@ class WaveformGenerator(object):
 
     @property
     def start_time(self):
-        return self.__data_grid.__start_time
+        return self.__data_grid.start_time
 
     @start_time.setter
     def start_time(self, start_time):
