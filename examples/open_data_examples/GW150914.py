@@ -43,7 +43,7 @@ waveform_generator = tupak.gw.waveform_generator.BinaryBlackHole(
 # In this step, we define the likelihood. Here we use the standard likelihood
 # function, passing it the data and the waveform generator.
 likelihood = tupak.gw.likelihood.GravitationalWaveTransient(
-    interferometers, waveform_generator, prior=prior)
+    interferometers, waveform_generator)
 
 # Finally, we run the sampler. This function takes the likelihood and prior
 # along with some options for how to do the sampling and how to save the data
