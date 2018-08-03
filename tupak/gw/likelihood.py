@@ -109,7 +109,7 @@ class GravitationalWaveTransient(likelihood.Likelihood):
 
     @prior.setter
     def prior(self, prior):
-        if prior is not None:
+        if isinstance(prior, dict):
             self.__prior = prior
         else:
             self.__prior = dict()
