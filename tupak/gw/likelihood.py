@@ -64,12 +64,12 @@ class GravitationalWaveTransient(likelihood.Likelihood):
         self._check_set_duration_and_sampling_frequency_of_waveform_generator()
 
         if self.distance_marginalization:
-            self._check_prior_is_set("luminosity_distance")
+            self._check_prior_is_set(key='luminosity_distance')
             self._setup_distance_marginalization()
             prior['luminosity_distance'] = self._ref_dist
 
         if self.phase_marginalization:
-            self._check_prior_is_set("phase")
+            self._check_prior_is_set(key='phase')
             self._setup_phase_marginalization()
             prior['phase'] = 0
 
@@ -94,10 +94,10 @@ class GravitationalWaveTransient(likelihood.Likelihood):
                     "waveform_generator.".format(attr))
             setattr(self.waveform_generator, attr, ifo_attr)
 
-    def _check_prior_is_set(self, prior):
-        if prior not in self.prior or not isinstance(self.prior[prior], tupak.core.prior.Prior):
-            logger.info('No prior provided for {}, using default prior.'.format(prior))
-            self.prior[prior] = tupak.core.prior.create_default_prior(name=prior)
+    def _check_prior_is_set(self, key):
+        if key not in self.prior or not isinstance(self.prior[key], tupak.core.prior.Prior):
+            logger.info('No prior provided for {}, using default prior.'.format(key))
+            self.prior[key] = tupak.core.prior.create_default_prior(name=key)
 
     @property
     def prior(self):
