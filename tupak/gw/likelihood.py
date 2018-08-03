@@ -94,10 +94,10 @@ class GravitationalWaveTransient(likelihood.Likelihood):
                     "waveform_generator.".format(attr))
             setattr(self.waveform_generator, attr, ifo_attr)
 
-    def _check_prior_is_set(self, prior_name):
-        if prior_name in self.prior:
-            raise ValueError("You can't use this marginalized likelihood without specifying a {} prior"
-                             .format(prior_name))
+    def _check_prior_is_set(self, prior):
+        if prior not in self.prior or not isinstance(self.prior[prior], tupak.core.prior.Prior):
+            logger.info('No prior provided for {}, using default prior.'.format(prior))
+            self.prior[prior] = tupak.core.prior.create_default_prior(prior)
 
     @property
     def prior(self):
@@ -222,9 +222,6 @@ class GravitationalWaveTransient(likelihood.Likelihood):
                           np.logspace(-3, 4, self._dist_margd_loglikelihood_array.shape[1] / 2)))
 
     def _setup_distance_marginalization(self):
-        if 'luminosity_distance' not in self.prior.keys():
-            logger.info('No prior provided for distance, using default prior.')
-            self.prior['luminosity_distance'] = tupak.core.prior.create_default_prior('luminosity_distance')
         self._distance_array = np.linspace(self.prior['luminosity_distance'].minimum,
                                            self.prior['luminosity_distance'].maximum, int(1e4))
         self._create_lookup_table()
@@ -249,9 +246,6 @@ class GravitationalWaveTransient(likelihood.Likelihood):
         self._dist_margd_loglikelihood_array -= log_norm
 
     def _setup_phase_marginalization(self):
-        if 'phase' not in self.prior.keys() or not isinstance(self.prior['phase'], tupak.core.prior.Prior):
-            logger.info('No prior provided for phase at coalescence, using default prior.')
-            self.prior['phase'] = tupak.core.prior.create_default_prior('phase')
         self._bessel_function_interped = interp1d(np.linspace(0, 1e6, int(1e5)),
                                                   np.log([i0e(snr) for snr in np.linspace(0, 1e6, int(1e5))])
                                                   + np.linspace(0, 1e6, int(1e5)),
