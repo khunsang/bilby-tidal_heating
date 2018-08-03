@@ -65,13 +65,11 @@ class GravitationalWaveTransient(likelihood.Likelihood):
 
         if self.distance_marginalization:
             self._check_prior_is_set()
-            self._distance_array = np.array([])
             self._setup_distance_marginalization()
             prior['luminosity_distance'] = self._ref_dist
 
         if self.phase_marginalization:
             self._check_prior_is_set()
-            self._bessel_function_interped = None
             self._setup_phase_marginalization()
             prior['phase'] = 0
 
