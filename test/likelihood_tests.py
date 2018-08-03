@@ -117,19 +117,20 @@ class TestGravitationalWaveTransient(unittest.TestCase):
         self.likelihood.prior = dict(a=1, b=2)
         self.assertDictEqual(expected_dict, self.likelihood.prior)
 
-    # def test_init_with_phase_marginalization_on_without_prior(self):
-    #     with mock.patch('tupak.gw.detector.InterferometerList') as m:
-    #         m.side_effect = lambda x: x
-    #         self.likelihood = tupak.gw.likelihood.GravitationalWaveTransient(
-    #             waveform_generator=self.waveform_generator,
-    #             interferometers=self.interferometers,
-    #             phase_marginalization=True,
-    #             prior={})
-    #     expected_prior = tupak.core.prior.create_default_prior('phase', default_priors_file='prior_files/binary_black_hole.prior')
-    #     actual_prior = self.likelihood.prior['phase']
-    #     self.assertDictEqual(expected_prior.__dict__,
-    #                          actual_prior.__dict__)
-    #
+    def test_init_with_phase_marginalization_on_without_prior(self):
+        with mock.patch('tupak.core.prior.create_default_prior') as c:
+            with mock.patch('tupak.gw.detector.InterferometerList') as m:
+                c.return_value = tupak.prior.Uniform(1, 2)
+                m.side_effect = lambda x: x
+                self.likelihood = tupak.gw.likelihood.GravitationalWaveTransient(
+                    waveform_generator=self.waveform_generator,
+                    interferometers=self.interferometers,
+                    phase_marginalization=True,
+                    prior={})
+            expected_prior = tupak.core.prior.create_default_prior('phase')
+            actual_prior = self.likelihood.prior['phase']
+            self.assertEqual(expected_prior, actual_prior)
+
     def test_init_with_phase_marginalization_on_with_prior(self):
         with mock.patch('tupak.gw.detector.InterferometerList') as m:
             m.side_effect = lambda x: x
@@ -137,17 +138,24 @@ class TestGravitationalWaveTransient(unittest.TestCase):
                 waveform_generator=self.waveform_generator,
                 interferometers=self.interferometers,
                 phase_marginalization=True,
-                prior=dict(luminosity_distance=tupak.prior.Uniform(minimum=100, maximum=400)))
-
+                prior=dict(phase=tupak.prior.Uniform(minimum=100, maximum=400)))
 
     def test_init_with_distance_marginalization_on_without_prior(self):
-        with self.assertRaises(ValueError):
+        with mock.patch('tupak.core.prior.create_default_prior') as c:
             with mock.patch('tupak.gw.detector.InterferometerList') as m:
+                c.return_value = tupak.prior.Uniform(1, 2)
                 m.side_effect = lambda x: x
-                self.likelihood = tupak.gw.likelihood.GravitationalWaveTransient(
-                    waveform_generator=self.waveform_generator,
-                    interferometers=self.interferometers,
-                    distance_marginalization=True)
+                # mock away method that takes forever to evaluate
+                with mock.patch('tupak.gw.likelihood.GravitationalWaveTransient._setup_distance_marginalization') as d:
+                    d.side_effect = lambda :None
+                    self.likelihood = tupak.gw.likelihood.GravitationalWaveTransient(
+                        waveform_generator=self.waveform_generator,
+                        interferometers=self.interferometers,
+                        distance_marginalization=True,
+                        prior={})
+            expected_prior = tupak.core.prior.create_default_prior('luminosity_distance')
+            actual_prior = self.likelihood.prior['luminosity_distance']
+            self.assertEqual(expected_prior, actual_prior)
 
 
 if __name__ == '__main__':
