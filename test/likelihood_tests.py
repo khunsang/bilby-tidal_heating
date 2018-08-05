@@ -10,7 +10,6 @@ import os
 import copy
 
 
-
 class TestGaussianLikelihood(unittest.TestCase):
 
     def setUp(self):
@@ -118,7 +117,7 @@ class TestGravitationalWaveTransient(unittest.TestCase):
         self.assertDictEqual(expected_dict, self.likelihood.prior)
 
     def test_init_with_phase_marginalization_on_without_prior(self):
-        with mock.patch('tupak.core.prior.create_default_prior') as c:
+        with mock.patch('tupak.core.prior.Uniform') as c:
             with mock.patch('tupak.gw.detector.InterferometerList') as m:
                 c.return_value = tupak.prior.Uniform(1, 2)
                 m.side_effect = lambda x: x
@@ -127,7 +126,7 @@ class TestGravitationalWaveTransient(unittest.TestCase):
                     interferometers=self.interferometers,
                     phase_marginalization=True,
                     prior={})
-            expected_prior = tupak.core.prior.create_default_prior('phase')
+            expected_prior = tupak.core.prior.Uniform(minimum=1, maximum=2)
             actual_prior = self.likelihood.prior['phase']
             self.assertEqual(expected_prior, actual_prior)
 
@@ -145,17 +144,12 @@ class TestGravitationalWaveTransient(unittest.TestCase):
             with mock.patch('tupak.gw.detector.InterferometerList') as m:
                 c.return_value = tupak.prior.Uniform(1, 2)
                 m.side_effect = lambda x: x
-                # mock away method that takes forever to evaluate
-                with mock.patch('tupak.gw.likelihood.GravitationalWaveTransient._setup_distance_marginalization') as d:
-                    d.side_effect = lambda :None
+                with self.assertRaises(ValueError):
                     self.likelihood = tupak.gw.likelihood.GravitationalWaveTransient(
-                        waveform_generator=self.waveform_generator,
-                        interferometers=self.interferometers,
-                        distance_marginalization=True,
-                        prior={})
-            expected_prior = tupak.core.prior.create_default_prior('luminosity_distance')
-            actual_prior = self.likelihood.prior['luminosity_distance']
-            self.assertEqual(expected_prior, actual_prior)
+                       waveform_generator=self.waveform_generator,
+                       interferometers=self.interferometers,
+                       distance_marginalization=True,
+                       prior={})
 
 
 if __name__ == '__main__':

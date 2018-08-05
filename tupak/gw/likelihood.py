@@ -97,7 +97,7 @@ class GravitationalWaveTransient(likelihood.Likelihood):
     def _check_prior_is_set(self, key):
         if key not in self.prior or not isinstance(self.prior[key], tupak.core.prior.Prior):
             logger.info('No prior provided for {}, using default prior.'.format(key))
-            self.prior[key] = _create_default_prior(name=key)
+            self.prior[key] = self._create_default_prior(name=key)
 
     @staticmethod
     def _create_default_prior(name):
