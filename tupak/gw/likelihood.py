@@ -97,7 +97,15 @@ class GravitationalWaveTransient(likelihood.Likelihood):
     def _check_prior_is_set(self, key):
         if key not in self.prior or not isinstance(self.prior[key], tupak.core.prior.Prior):
             logger.info('No prior provided for {}, using default prior.'.format(key))
-            self.prior[key] = tupak.core.prior.create_default_prior(name=key)
+            self.prior[key] = _create_default_prior(name=key)
+
+    @staticmethod
+    def _create_default_prior(name):
+        if name == 'phase':
+            return tupak.core.prior.Uniform(minimum=0, maximum=2*np.pi)
+        elif name == 'luminosity_distance':
+            raise ValueError("You need to create a prior for the luminosity "
+                             "distance if you want to marginalise over it.")
 
     @property
     def prior(self):
@@ -142,6 +150,7 @@ class GravitationalWaveTransient(likelihood.Likelihood):
         optimal_snr_squared = 0
         matched_filter_snr_squared_tc_array = np.zeros(
             self.interferometers.frequency_array[0:-1].shape, dtype=np.complex128)
+
         for interferometer in self.interferometers:
             signal_ifo = interferometer.get_detector_response(waveform_polarizations,
                                                               self.waveform_generator.parameters)
