@@ -5,6 +5,7 @@ import numpy as np
 from math import fmod
 import argparse
 import traceback
+import inspect
 
 logger = logging.getLogger('tupak')
 
@@ -14,6 +15,15 @@ speed_of_light = 299792458.0  # speed of light in m/s
 parsec = 3.085677581 * 1e16
 solar_mass = 1.98855 * 1e30
 radius_of_earth = 6371 * 1e3  # metres
+
+
+def infer_parameters_from_function(func):
+    """ Infers the arguments of function (except the first arg which is
+        assumed to be the dep. variable)
+    """
+    parameters = inspect.getargspec(func).args
+    parameters.pop(0)
+    return parameters
 
 
 def get_sampling_frequency(time_series):
@@ -425,10 +435,6 @@ def set_up_command_line_arguments():
                         help="Force clean data, never use cached data")
     parser.add_argument("-u", "--use-cached", action="store_true",
                         help="Force cached data and do not check its validity")
-    parser.add_argument("-d", "--detectors",  nargs='+',
-                        default=['H1', 'L1', 'V1'],
-                        help=("List of detectors to use in open data calls, "
-                              "e.g. -d H1 L1 for H1 and L1"))
     parser.add_argument("-t", "--test", action="store_true",
                         help=("Used for testing only: don't run full PE, but"
                               " just check nothing breaks"))
@@ -455,6 +461,7 @@ else:
                    matplotlib.pyplot with non-interactive "Agg" backend.')
     import matplotlib
     import matplotlib.pyplot as plt
+
     non_gui_backends = matplotlib.rcsetup.non_interactive_bk
     for backend in non_gui_backends:
         try:

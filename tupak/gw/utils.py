@@ -217,15 +217,17 @@ def noise_weighted_inner_product(aa, bb, power_spectral_density, duration):
     return 4 / duration * np.sum(integrand)
 
 
-def matched_filter_snr_squared(signal, interferometer, duration):
+def matched_filter_snr_squared(signal, frequency_domain_strain, power_spectral_density, duration):
     """
 
     Parameters
     ----------
     signal: array_like
         Array containing the signal
-    interferometer: tupak.gw.detector.Interferometer
-        Interferometer which we want to have the data and noise from
+    frequency_domain_strain: array_like
+
+    power_spectral_density: array_like
+
     duration: float
         Time duration of the signal
 
@@ -234,28 +236,27 @@ def matched_filter_snr_squared(signal, interferometer, duration):
     float: The matched filter signal to noise ratio squared
 
     """
-    return noise_weighted_inner_product(
-        signal, interferometer.frequency_domain_strain,
-        interferometer.power_spectral_density_array, duration)
+    return noise_weighted_inner_product(signal, frequency_domain_strain, power_spectral_density, duration)
 
 
-def optimal_snr_squared(signal, interferometer, duration):
+def optimal_snr_squared(signal, power_spectral_density, duration):
     """
 
     Parameters
     ----------
     signal: array_like
         Array containing the signal
-    interferometer: tupak.gw.detector.Interferometer
-        Interferometer which we want to have the data and noise from
+    power_spectral_density: array_like
+
     duration: float
         Time duration of the signal
 
     Returns
     -------
-    float: The optimal signal to noise ratio possible squared
+    float: The matched filter signal to noise ratio squared
+
     """
-    return noise_weighted_inner_product(signal, signal, interferometer.power_spectral_density_array, duration)
+    return noise_weighted_inner_product(signal, signal, power_spectral_density, duration)
 
 
 def get_event_time(event):
@@ -318,8 +319,10 @@ def get_open_strain_data(
         Passed to `gwpy.timeseries.TimeSeries.fetch_open_data`
 
     Returns
-    -----------
+    -------
     strain: gwpy.timeseries.TimeSeries
+        The object containing the strain data. If the connection to the open-data server
+        fails, this function retruns `None`.
 
     """
     filename = '{}/{}_{}_{}.txt'.format(outdir, name, start_time, end_time)
@@ -335,9 +338,16 @@ def get_open_strain_data(
     else:
         logger.info('Fetching open data from {} to {} with buffer time {}'
                     .format(start_time, end_time, buffer_time))
-        strain = TimeSeries.fetch_open_data(name, start_time, end_time, **kwargs)
-        logger.info('Saving data to {}'.format(filename))
-        strain.write(filename)
+        try:
+            strain = TimeSeries.fetch_open_data(name, start_time, end_time, **kwargs)
+            logger.info('Saving cache of data to {}'.format(filename))
+            strain.write(filename)
+        except Exception as e:
+            logger.info("Unable to fetch open data, see debug for detailed info")
+            logger.info("Call to gwpy.timeseries.TimeSeries.fetch_open_data returned {}"
+                        .format(e))
+            strain = None
+
     return strain
 
 

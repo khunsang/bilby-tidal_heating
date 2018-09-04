@@ -41,7 +41,7 @@ waveform_generator = tupak.gw.waveform_generator.BinaryBlackHole(
 
 # Set up interferometers.  In this case we'll use three interferometers (LIGO-Hanford (H1), LIGO-Livingston (L1),
 # and Virgo (V1)).  These default to their design sensitivity
-interferometers = tupak.gw.detector.InterferometerSet(['H1', 'L1', 'V1'])
+interferometers = tupak.gw.detector.InterferometerList(['H1', 'L1', 'V1'])
 interferometers.set_strain_data_from_power_spectral_densities(sampling_frequency=sampling_frequency, duration=duration)
 interferometers.inject_signal(parameters=injection_parameters, waveform_generator=waveform_generator)
 
@@ -60,8 +60,10 @@ for key in ['a_1', 'a_2', 'tilt_1', 'tilt_2', 'phi_12', 'phi_jl', 'psi', 'ra', '
     priors[key] = injection_parameters[key]
 
 # Initialise the likelihood by passing in the interferometer data (IFOs) and the waveoform generator
-likelihood = tupak.gw.likelihood.GravitationalWaveTransient(
-    interferometers=interferometers, waveform_generator=waveform_generator)
+likelihood = tupak.gw.GravitationalWaveTransient(
+    interferometers=interferometers, waveform_generator=waveform_generator,
+    time_marginalization=False, phase_marginalization=False,
+    distance_marginalization=False, prior=priors)
 
 # Run sampler.  In this case we're going to use the `dynesty` sampler
 result = tupak.run_sampler(likelihood=likelihood, priors=priors, sampler='dynesty', npoints=1000,

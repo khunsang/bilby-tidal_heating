@@ -25,7 +25,7 @@ waveform_generator = tupak.gw.waveform_generator.BinaryBlackHole(
     duration=duration, sampling_frequency=sampling_frequency, waveform_arguments=waveform_arguments)
 
 # Set up interferometers.
-interferometers = tupak.gw.detector.InterferometerSet(['H1', 'L1', 'V1'])
+interferometers = tupak.gw.detector.InterferometerList(['H1', 'L1', 'V1'])
 interferometers.set_strain_data_from_power_spectral_densities(sampling_frequency=sampling_frequency, duration=duration)
 interferometers.inject_signal(parameters=injection_parameters, waveform_generator=waveform_generator)
 
@@ -39,9 +39,9 @@ for key in ['a_1', 'a_2', 'tilt_1', 'tilt_2', 'phi_12', 'phi_jl', 'iota', 'ra', 
 # Note that we now need to pass the: priors and flags for each thing that's being marginalised.
 # This is still under development so care should be taken with the marginalised likelihood.
 likelihood = tupak.gw.GravitationalWaveTransient(
-    interferometers=IFOs, waveform_generator=waveform_generator, prior=priors,
+    interferometers=interferometers, waveform_generator=waveform_generator,
     distance_marginalization=False, phase_marginalization=True,
-    time_marginalization=False)
+    time_marginalization=False, prior=priors)
 
 # Run sampler
 result = tupak.run_sampler(likelihood=likelihood, priors=priors, sampler='dynesty',
