@@ -236,7 +236,7 @@ class Result(dict):
         """
         return self.posterior_volume / self.prior_volume(priors)
 
-    def plot_corner(self, parameters=None, save=True, priors=None, dpi=300,
+    def plot_corner(self, parameters=None, priors=None, save=True, dpi=300,
                     **kwargs):
         """ Plot a corner-plot using corner
 
@@ -246,11 +246,11 @@ class Result(dict):
         ----------
         parameters: list, optional
             If given, a list of the parameter names to include
-        save: bool, optional
-            If true, save the image using the given label and outdir
-        priors: tupak.core.prior.PriorSet
+        priors: tupak.core.prior.PriorSet, optional
             If given, add the prior probability density functions to the
             one-dimensional marginal distributions
+        save: bool, optional
+            If true, save the image using the given label and outdir
         dpi: int, optional
             Dots per inch resolution of the plot
         **kwargs:
