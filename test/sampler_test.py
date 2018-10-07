@@ -440,6 +440,11 @@ class TestRunningSamplers(unittest.TestCase):
             likelihood=self.likelihood, priors=self.priors, sampler='pymc3',
             draws=50, tune=50, n_init=1000, save=False)
 
+    def test_run_pymultinest(self):
+        _ = bilby.run_sampler(
+            likelihood=self.likelihood, priors=self.priors,
+            sampler='pymultinest', draws=50, tune=50, n_init=1000, save=False)
+
 
 if __name__ == '__main__':
     unittest.main()
