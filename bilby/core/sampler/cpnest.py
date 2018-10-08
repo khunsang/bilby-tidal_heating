@@ -75,9 +75,7 @@ class Cpnest(NestedSampler):
         if self.plot:
             out.plot()
 
-        # Since the output is not just samples, but log_likelihood as well,
-        # we turn this into a dataframe here. The index [0] here may be wrong
-        self.result.posterior = DataFrame(out.posterior_samples[0])
+        self.result.posterior = DataFrame(out.posterior_samples)
         self.result.log_evidence = out.NS.state.logZ
         self.result.log_evidence_err = np.nan
         return self.result
