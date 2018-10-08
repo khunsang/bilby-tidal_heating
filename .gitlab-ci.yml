@@ -31,6 +31,7 @@ python-3:
   image: bilbydev/test-suite-py3:0.3.1
   before_script:
     # Install the dependencies specified in the Pipfile
+    - source /root/.bashrc
     - pipenv install --three --python=/opt/conda/bin/python --system --deploy
   script:
     - python setup.py install
