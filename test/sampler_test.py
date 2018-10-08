@@ -394,6 +394,7 @@ class TestRunningSamplers(unittest.TestCase):
 
     def setUp(self):
         np.random.seed(42)
+        bilby.core.utils.command_line_args.test = False
         self.x = np.linspace(0, 1, 11)
         self.model = lambda x, m, c: m * x + c
         self.injection_parameters = dict(m=0.5, c=0.2)
@@ -409,6 +410,7 @@ class TestRunningSamplers(unittest.TestCase):
     def tearDown(self):
         del self.likelihood
         del self.priors
+        bilby.core.utils.command_line_args.test = False
 
     def test_run_cpnest(self):
         _ = bilby.run_sampler(
