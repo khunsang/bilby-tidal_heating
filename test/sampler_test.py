@@ -125,7 +125,7 @@ class TestCPNest(unittest.TestCase):
         self.assertDictEqual(expected, self.sampler.kwargs)
 
     def test_translate_kwargs(self):
-        expected = dict(verbose=1, nthreads=1, Nlive=250, maxmcmc=1000,
+        expected = dict(verbose=1, nthreads=1, nlive=250, maxmcmc=1000,
                         seed=None, poolsize=100, nhamiltonian=0, resume=False)
         for equiv in bilby.core.sampler.base_sampler.NestedSampler.npoints_equiv_kwargs:
             new_kwargs = self.sampler.kwargs.copy()
