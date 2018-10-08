@@ -445,7 +445,7 @@ class TestRunningSamplers(unittest.TestCase):
     def test_run_pymultinest(self):
         _ = bilby.run_sampler(
             likelihood=self.likelihood, priors=self.priors,
-            sampler='pymultinest', draws=50, tune=50, n_init=1000, save=False)
+            sampler='pymultinest', nlive=100, save=False)
 
 
 if __name__ == '__main__':
