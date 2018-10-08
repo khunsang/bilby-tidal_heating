@@ -28,8 +28,8 @@ class Cpnest(NestedSampler):
         If true, print information information about the convergence during
 
     """
-    default_kwargs = dict(verbose=1, Nthreads=1, Nlive=500, maxmcmc=1000,
-                          Poolsize=100, seed=None, balance_samplers=True)
+    default_kwargs = dict(verbose=1, nthreads=1, nlive=500, maxmcmc=1000,
+                          seed=None, balanced_sampling=True)
 
     def _translate_kwargs(self, kwargs):
         if 'Nlive' not in kwargs:
