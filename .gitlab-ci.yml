@@ -28,7 +28,7 @@ python-2:
 # test example on python 3
 python-3:
   stage: test
-  image: bilbydev/test-suite-py3:0.3.1
+  image: bilbydev/test-suite-py3
   before_script:
     # Install the dependencies specified in the Pipfile
     - source /root/.bashrc
