@@ -29,13 +29,13 @@ class Cpnest(NestedSampler):
 
     """
     default_kwargs = dict(verbose=1, nthreads=1, nlive=500, maxmcmc=1000,
-                          seed=None, balanced_sampling=True)
+                          seed=None, poolsize=100, nhamiltonian=0, resume=False)
 
     def _translate_kwargs(self, kwargs):
-        if 'Nlive' not in kwargs:
+        if 'nlive' not in kwargs:
             for equiv in self.npoints_equiv_kwargs:
                 if equiv in kwargs:
-                    kwargs['Nlive'] = kwargs.pop(equiv)
+                    kwargs['nlive'] = kwargs.pop(equiv)
         if 'seed' not in kwargs:
             logger.warning('No seed provided, cpnest will use 1234.')
 
