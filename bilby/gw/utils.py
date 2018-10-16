@@ -483,3 +483,16 @@ def plot_skymap(result, center='120d -40d', nside=512):
     lat.set_ticks_visible(False)
 
     fig.savefig('{}/{}_skymap.png'.format(result.outdir, result.label))
+
+def build_roq_weights(data, B, deltaF):
+
+    '''
+    for a data array and reduced basis compute roq weights
+    B: (reduced basis element)*invV (the inverse Vandermonde matrix)
+    data: data set
+    PSD: detector noise power spectral density (must be same shape as data)
+    deltaF: integration element df
+
+    '''
+    weights = np.dot(data, B.conjugate()) * deltaF * 4.
+    return weights

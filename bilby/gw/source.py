@@ -346,3 +346,31 @@ def lal_binary_neutron_star(
     h_cross = h_cross[:len(frequency_array)]
 
     return {'plus': h_plus, 'cross': h_cross}
+
+
+def roq(frequency_array, a_1, a_2, chip, iota, mass_1,
+        mass_2, luminosity_distance, alpha, phase, **waveform_arguments):
+
+    frequency_nodes_linear = waveform_arguments['frequency_nodes_linear']
+    frequency_nodes_quadratic = waveform_arguments['frequency_nodes_quadratic']
+    fref = 20.0
+    version = 1
+
+    H_linear = lalsim.SimIMRPhenomPFrequencySequence(
+        frequency_nodes_linear, a_1, a_2, chip, iota,
+        mass_1*lal.MSUN_SI, mass_2*lal.MSUN_SI, luminosity_distance*1e6*lal.PC_SI,
+        alpha, phase, fref, version, None)
+    H_quadratic = lalsim.SimIMRPhenomPFrequencySequence(
+        frequency_nodes_quadratic, a_1, a_2, chip, iota,
+        mass_1*lal.MSUN_SI, mass_2*lal.MSUN_SI, luminosity_distance*1e6*lal.PC_SI,
+        alpha, phase, fref, version, None)
+
+
+    H_linear_plus = H_linear[0].data.data
+    H_linear_cross = H_linear[1].data.data
+
+    H_quadratic_plus = H_quadratic[0].data.data
+    H_quadratic_cross = H_quadratic[1].data.data
+
+    return {'linear_plus': H_linear_plus, 'linear_cross': H_linear_cross,
+            'quadratic_plus': H_quadratic_plus, 'quadratic_cross': H_quadratic_cross}
