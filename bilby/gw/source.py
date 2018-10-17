@@ -348,29 +348,84 @@ def lal_binary_neutron_star(
     return {'plus': h_plus, 'cross': h_cross}
 
 
-def roq(frequency_array, a_1, a_2, chip, iota, mass_1,
-        mass_2, luminosity_distance, alpha, phase, **waveform_arguments):
+def roq(frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
+        phi_12, a_2, tilt_2, phi_jl, iota, phase, **waveform_arguments):
+    """
+    See https://git.ligo.org/lscsoft/lalsuite/blob/master/lalsimulation/src/LALSimInspiral.c#L1460
+
+    Parameters
+    ----------
+    frequency_array: IGNORED
+    mass_1, mass_2, luminosity_distance, a_1, tilt_1, phi_12, a_2, tilt_2,
+    phi_jl, iota, phase: float
+        See lal_binary_black_hole
+    waveform_arguments: dict
+        - frequency_nodes_linear
+        - frequency_nodes_quadratic
+        - reference_frequency
+        - version
+
+    Return
+    ------
+    waveform_polarizations: dict
+        Dict containing plus and cross modes evaluated at the linear and
+        quadratic frequency nodes.
+    """
 
     frequency_nodes_linear = waveform_arguments['frequency_nodes_linear']
     frequency_nodes_quadratic = waveform_arguments['frequency_nodes_quadratic']
-    fref = 20.0
-    version = 1
+    reference_frequency = getattr(waveform_arguments,
+                                  'reference_frequency', 20.0)
+    versions = dict(IMRPhenomPv2=lalsim.IMRPhenomPv2_V)
+    version = versions[getattr(waveform_arguments, 'version', 'IMRPhenomPv2')]
 
-    H_linear = lalsim.SimIMRPhenomPFrequencySequence(
-        frequency_nodes_linear, a_1, a_2, chip, iota,
-        mass_1*lal.MSUN_SI, mass_2*lal.MSUN_SI, luminosity_distance*1e6*lal.PC_SI,
-        alpha, phase, fref, version, None)
-    H_quadratic = lalsim.SimIMRPhenomPFrequencySequence(
-        frequency_nodes_quadratic, a_1, a_2, chip, iota,
-        mass_1*lal.MSUN_SI, mass_2*lal.MSUN_SI, luminosity_distance*1e6*lal.PC_SI,
-        alpha, phase, fref, version, None)
+    luminosity_distance = luminosity_distance * 1e6 * utils.parsec
+    mass_1 = mass_1 * utils.solar_mass
+    mass_2 = mass_2 * utils.solar_mass
 
+    if tilt_1 == 0 and tilt_2 == 0:
+        spin_1x = 0
+        spin_1y = 0
+        spin_1z = a_1
+        spin_2x = 0
+        spin_2y = 0
+        spin_2z = a_2
+    else:
+        iota, spin_1x, spin_1y, spin_1z, spin_2x, spin_2y, spin_2z = \
+            lalsim.SimInspiralTransformPrecessingNewInitialConditions(
+                iota, phi_jl, tilt_1, tilt_2, phi_12, a_1, a_2, mass_1, mass_2,
+                reference_frequency, phase)
 
-    H_linear_plus = H_linear[0].data.data
-    H_linear_cross = H_linear[1].data.data
+    chi_1_l, chi_2_l, chi_p, theta_jn, alpha, phase_aligned, zeta =\
+        lalsim.SimIMRPhenomPCalculateModelParametersFromSourceFrame(
+            mass_1, mass_2, reference_frequency, phase, iota, spin_1x,
+            spin_1y, spin_1z, spin_2x, spin_2y, spin_2z, version)
 
-    H_quadratic_plus = H_quadratic[0].data.data
-    H_quadratic_cross = H_quadratic[1].data.data
+    waveform_polarizations = dict()
 
-    return {'linear_plus': H_linear_plus, 'linear_cross': H_linear_cross,
-            'quadratic_plus': H_quadratic_plus, 'quadratic_cross': H_quadratic_cross}
+    h_linear_plus, h_linear_cross = lalsim.SimIMRPhenomPFrequencySequence(
+        frequency_nodes_linear, chi_1_l, chi_2_l, chi_p, theta_jn,
+        mass_1, mass_2, luminosity_distance,
+        alpha, phase, reference_frequency, version, None)
+    h_quadratic_plus, h_quadratic_cross = lalsim.SimIMRPhenomPFrequencySequence(
+        frequency_nodes_quadratic, chi_1_l, chi_2_l, chi_p, theta_jn,
+        mass_1, mass_2, luminosity_distance,
+        alpha, phase, reference_frequency, version, None)
+
+    waveform_polarizations['linear'] = dict(
+        plus=np.cos(2 * zeta) * h_linear_plus.data.data +
+            np.sin(2 * zeta) * h_linear_cross.data.data,
+        cross=np.cos(2 * zeta) * h_linear_cross.data.data -
+            np.sin(2 * zeta) * h_linear_plus.data.data)
+
+    waveform_polarizations['quadratic'] = dict(
+        plus=np.cos(2 * zeta) * h_quadratic_plus.data.data +
+             np.sin(2 * zeta) * h_quadratic_cross.data.data,
+        cross=np.cos(2 * zeta) * h_quadratic_cross.data.data -
+              np.sin(2 * zeta) * h_quadratic_plus.data.data)
+
+    for kind in ['linear', 'quadratic']:
+        for pol in ['plus', 'cross']:
+            waveform_polarizations[kind][pol] *= -1
+
+    return waveform_polarizations
