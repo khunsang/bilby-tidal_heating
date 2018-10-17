@@ -429,7 +429,7 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
 
         log_l = matched_filter_snr_squared - optimal_snr_squared / 2
 
-        return log_l
+        return log_l.real
 
 
 def get_binary_black_hole_likelihood(interferometers):
