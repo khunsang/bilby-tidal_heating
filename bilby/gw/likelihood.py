@@ -207,8 +207,6 @@ class GravitationalWaveTransient(likelihood.Likelihood):
         else:
             log_l = matched_filter_snr_squared.real - optimal_snr_squared / 2
 
-        print(matched_filter_snr_squared, optimal_snr_squared)
-
         return log_l.real
 
     def _setup_rho(self, matched_filter_snr_squared, optimal_snr_squared):
