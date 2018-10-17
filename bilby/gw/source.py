@@ -413,16 +413,16 @@ def roq(frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
         alpha, phase, reference_frequency, version, None)
 
     waveform_polarizations['linear'] = dict(
-        plus=np.cos(2 * zeta) * h_linear_plus.data.data +
-            np.sin(2 * zeta) * h_linear_cross.data.data,
-        cross=np.cos(2 * zeta) * h_linear_cross.data.data -
-            np.sin(2 * zeta) * h_linear_plus.data.data)
+        plus=(np.cos(2 * zeta) * h_linear_plus.data.data +
+              np.sin(2 * zeta) * h_linear_cross.data.data),
+        cross=(np.cos(2 * zeta) * h_linear_cross.data.data -
+               np.sin(2 * zeta) * h_linear_plus.data.data))
 
     waveform_polarizations['quadratic'] = dict(
-        plus=np.cos(2 * zeta) * h_quadratic_plus.data.data +
-             np.sin(2 * zeta) * h_quadratic_cross.data.data,
-        cross=np.cos(2 * zeta) * h_quadratic_cross.data.data -
-              np.sin(2 * zeta) * h_quadratic_plus.data.data)
+        plus=(np.cos(2 * zeta) * h_quadratic_plus.data.data +
+              np.sin(2 * zeta) * h_quadratic_cross.data.data),
+        cross=(np.cos(2 * zeta) * h_quadratic_cross.data.data -
+               np.sin(2 * zeta) * h_quadratic_plus.data.data))
 
     for kind in ['linear', 'quadratic']:
         for pol in ['plus', 'cross']:
