@@ -207,6 +207,8 @@ class GravitationalWaveTransient(likelihood.Likelihood):
         else:
             log_l = matched_filter_snr_squared.real - optimal_snr_squared / 2
 
+        print(matched_filter_snr_squared, optimal_snr_squared)
+
         return log_l.real
 
     def _setup_rho(self, matched_filter_snr_squared, optimal_snr_squared):
@@ -369,6 +371,69 @@ class BasicGravitationalWaveTransient(likelihood.Likelihood):
         return log_l.real
 
 
+class ROQGravitationalWaveTransient(GravitationalWaveTransient):
+    """reduced order stuff"""
+    def __init__(self, interferometers, waveform_generator,
+                 linear_matrix, quadratic_matrix):
+        GravitationalWaveTransient.__init__(
+            self, interferometers, waveform_generator)
+
+        self.linear_matrix = linear_matrix
+        self.quadratic_matrix = quadratic_matrix
+        self.weights = dict()
+        self.set_weights()
+        self.frequency_nodes_linear =\
+            waveform_generator.waveform_arguments['frequency_nodes_linear']
+
+    def set_weights(self):
+        for ifo in self.interferometers:
+            self.weights[ifo.name + '_linear'] = build_roq_weights(
+                ifo.frequency_domain_strain[ifo.frequency_mask] /
+                ifo.power_spectral_density_array[ifo.frequency_mask],
+                self.linear_matrix, 1 / ifo.strain_data.duration)
+            self.weights[ifo.name + '_quadratic'] = build_roq_weights(
+                1 / ifo.power_spectral_density_array[ifo.frequency_mask],
+                self.quadratic_matrix.real, 1 / ifo.strain_data.duration)
+
+    def log_likelihood_ratio(self):
+        optimal_snr_squared = 0.
+        matched_filter_snr_squared = 0.
+
+        waveform = self.waveform_generator.frequency_domain_strain(
+            self.parameters)
+        for ifo in self.interferometers:
+
+            f_plus = ifo.antenna_response(
+                self.parameters['ra'], self.parameters['dec'],
+                self.parameters['geocent_time'], self.parameters['psi'], 'plus')
+            f_cross = ifo.antenna_response(
+                self.parameters['ra'], self.parameters['dec'],
+                self.parameters['geocent_time'], self.parameters['psi'], 'cross')
+
+            dt = ifo.time_delay_from_geocenter(
+                self.parameters['ra'],
+                self.parameters['dec'],
+                ifo.strain_data.start_time)
+
+            h_plus_linear = f_plus * waveform['linear']['plus']
+            h_cross_linear = f_cross * waveform['linear']['cross']
+            h_plus_quadratic = f_plus * waveform['quadratic']['plus']
+            h_cross_quadratic = f_cross * waveform['quadratic']['cross']
+
+            matched_filter_snr_squared += np.vdot(
+                (h_plus_linear + h_cross_linear) *
+                np.exp(- 1j * 2 * np.pi * dt * self.frequency_nodes_linear),
+                self.weights[ifo.name + '_linear'])
+
+            optimal_snr_squared += \
+                np.vdot(np.abs(h_plus_quadratic + h_cross_quadratic)**2,
+                        self.weights[ifo.name+'_quadratic'])
+
+        log_l = matched_filter_snr_squared - optimal_snr_squared / 2
+
+        return log_l
+
+
 def get_binary_black_hole_likelihood(interferometers):
     """ A rapper to quickly set up a likelihood for BBH parameter estimation
 
@@ -391,52 +456,3 @@ def get_binary_black_hole_likelihood(interferometers):
         waveform_arguments={'waveform_approximant': 'IMRPhenomPv2',
                             'reference_frequency': 50})
     return GravitationalWaveTransient(interferometers, waveform_generator)
-
-class ROQGravitationalWaveTransient(GravitationalWaveTransient):
-    """reduced order stuff"""
-    def __init__(self, interferometers, waveform_generator,
-                 linear_matrix, quadratic_matrix):
-        GravitationalWaveTransient.__init__(self, interferometers, waveform_generator)
-
-        self.linear_matrix = linear_matrix
-        self.quadratic_matrix = quadratic_matrix
-        self.weights = dict()
-        self.set_weights()
-
-    def set_weights(self):
-        for ifo in self.interferometers:
-            self.weights[ifo.name+'_linear'] = build_roq_weights(
-                ifo.frequency_domain_strain[ifo.frequency_mask]/ifo.power_spectral_density_array[ifo.frequency_mask],
-                self.linear_matrix, 1./ifo.strain_data.duration)
-            self.weights[ifo.name+'_quadratic'] = build_roq_weights(
-                1./ifo.power_spectral_density_array[ifo.frequency_mask],
-                self.quadratic_matrix, 1./ifo.strain_data.duration)
-
-    def log_likelihood_ratio(self):
-        hh = 0.
-        dh = 0.
-
-        waveform = self.waveform_generator.frequency_domain_strain(self.parameters)
-        for ifo in self.interferometers:
-
-            fplus = ifo.antenna_response(self.parameters['ra'], self.parameters['dec'],
-                                         self.parameters['geocent_time'], self.parameters['psi'],'plus')
-            fcross = ifo.antenna_response(self.parameters['ra'], self.parameters['dec'],
-                                          self.parameters['geocent_time'], self.parameters['psi'],'cross')
-
-            h_plus_linear = fplus*waveform['linear_plus']
-            h_cross_linear = fcross*waveform['linear_cross']
-            h_plus_quadratic = fplus*waveform['quadratic_plus']
-            h_cross_quadratic = fcross*waveform['quadratic_cross']
-
-            strain_linear = h_plus_linear + h_cross_linear
-            strain_quadratic = np.abs(h_plus_quadratic + h_cross_quadratic)**2
-
-
-            hh += np.vdot(strain_quadratic, self.weights[ifo.name+'_quadratic']).real
-            dh += np.vdot(strain_linear, self.weights[ifo.name + '_linear'].T).real
-
-
-        log_likelihood_ratio = -0.5*(hh - 2.*dh)
-
-        return log_likelihood_ratio
