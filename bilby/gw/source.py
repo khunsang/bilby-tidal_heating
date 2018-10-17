@@ -406,11 +406,11 @@ def roq(frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
     h_linear_plus, h_linear_cross = lalsim.SimIMRPhenomPFrequencySequence(
         frequency_nodes_linear, chi_1_l, chi_2_l, chi_p, theta_jn,
         mass_1, mass_2, luminosity_distance,
-        alpha, phase, reference_frequency, version, None)
+        alpha, phase_aligned, reference_frequency, version, None)
     h_quadratic_plus, h_quadratic_cross = lalsim.SimIMRPhenomPFrequencySequence(
         frequency_nodes_quadratic, chi_1_l, chi_2_l, chi_p, theta_jn,
         mass_1, mass_2, luminosity_distance,
-        alpha, phase, reference_frequency, version, None)
+        alpha, phase_aligned, reference_frequency, version, None)
 
     waveform_polarizations['linear'] = dict(
         plus=(np.cos(2 * zeta) * h_linear_plus.data.data +
@@ -423,9 +423,5 @@ def roq(frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
               np.sin(2 * zeta) * h_quadratic_cross.data.data),
         cross=(np.cos(2 * zeta) * h_quadratic_cross.data.data -
                np.sin(2 * zeta) * h_quadratic_plus.data.data))
-
-    for kind in ['linear', 'quadratic']:
-        for pol in ['plus', 'cross']:
-            waveform_polarizations[kind][pol] *= -1
 
     return waveform_polarizations
