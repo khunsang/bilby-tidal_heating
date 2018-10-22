@@ -344,25 +344,30 @@ class Dynesty(NestedSampler):
 
         weights = np.exp(current_state['sample_log_weights'] -
                          current_state['cumulative_log_evidence'][-1])
-        current_state['posterior'] = self.external_sampler.utils.resample_equal(
-            np.array(current_state['physical_samples']), weights)
-
-        save(resume_file, current_state)
-
-        self.sampler.saved_id = [self.sampler.saved_id[-1]]
-        self.sampler.saved_u = [self.sampler.saved_u[-1]]
-        self.sampler.saved_v = [self.sampler.saved_v[-1]]
-        self.sampler.saved_logl = [self.sampler.saved_logl[-1]]
-        self.sampler.saved_logvol = [self.sampler.saved_logvol[-1]]
-        self.sampler.saved_logwt = [self.sampler.saved_logwt[-1]]
-        self.sampler.saved_logz = [self.sampler.saved_logz[-1]]
-        self.sampler.saved_logzvar = [self.sampler.saved_logzvar[-1]]
-        self.sampler.saved_h = [self.sampler.saved_h[-1]]
-        self.sampler.saved_nc = [self.sampler.saved_nc[-1]]
-        self.sampler.saved_boundidx = [self.sampler.saved_boundidx[-1]]
-        self.sampler.saved_it = [self.sampler.saved_it[-1]]
-        self.sampler.saved_bounditer = [self.sampler.saved_bounditer[-1]]
-        self.sampler.saved_scale = [self.sampler.saved_scale[-1]]
+        try:
+            current_state['posterior'] = self.external_sampler.utils.\
+                resample_equal(np.array(current_state['physical_samples']),
+                               weights)
+        except ValueError as e:
+            logger.warning("The current status could not be checkpointed for"
+                           "the following reason: \n{}".format(e) + "\n "
+                           "The current state will not be saved")
+        else:
+            save(resume_file, current_state)
+            self.sampler.saved_id = [self.sampler.saved_id[-1]]
+            self.sampler.saved_u = [self.sampler.saved_u[-1]]
+            self.sampler.saved_v = [self.sampler.saved_v[-1]]
+            self.sampler.saved_logl = [self.sampler.saved_logl[-1]]
+            self.sampler.saved_logvol = [self.sampler.saved_logvol[-1]]
+            self.sampler.saved_logwt = [self.sampler.saved_logwt[-1]]
+            self.sampler.saved_logz = [self.sampler.saved_logz[-1]]
+            self.sampler.saved_logzvar = [self.sampler.saved_logzvar[-1]]
+            self.sampler.saved_h = [self.sampler.saved_h[-1]]
+            self.sampler.saved_nc = [self.sampler.saved_nc[-1]]
+            self.sampler.saved_boundidx = [self.sampler.saved_boundidx[-1]]
+            self.sampler.saved_it = [self.sampler.saved_it[-1]]
+            self.sampler.saved_bounditer = [self.sampler.saved_bounditer[-1]]
+            self.sampler.saved_scale = [self.sampler.saved_scale[-1]]
 
     def generate_trace_plots(self, dynesty_results):
         filename = '{}/{}_trace.png'.format(self.outdir, self.label)
