@@ -36,14 +36,12 @@ class TestBasicGWTransient(unittest.TestCase):
     def test_noise_log_likelihood(self):
         """Test noise log likelihood matches precomputed value"""
         self.likelihood.noise_log_likelihood()
-        self.assertAlmostEqual(self.likelihood.noise_log_likelihood(),
-                               -4036.1064342687155, 3)
+        self.assertAlmostEqual(-4037.0994372143414, self.likelihood.noise_log_likelihood(), 3)
 
     def test_log_likelihood(self):
         """Test log likelihood matches precomputed value"""
         self.likelihood.log_likelihood()
-        self.assertAlmostEqual(self.likelihood.log_likelihood(),
-                               -4048.5113284032036, 3)
+        self.assertAlmostEqual(-4049.401848684305, self.likelihood.log_likelihood(), 3)
 
     def test_log_likelihood_ratio(self):
         """Test log likelihood ratio returns the correct value"""
@@ -106,14 +104,12 @@ class TestGWTransient(unittest.TestCase):
     def test_noise_log_likelihood(self):
         """Test noise log likelihood matches precomputed value"""
         self.likelihood.noise_log_likelihood()
-        self.assertAlmostEqual(self.likelihood.noise_log_likelihood(),
-                               -4036.1064342687155, 3)
+        self.assertAlmostEqual(-4037.0994372143414, self.likelihood.noise_log_likelihood(), 3)
 
     def test_log_likelihood(self):
         """Test log likelihood matches precomputed value"""
         self.likelihood.log_likelihood()
-        self.assertAlmostEqual(self.likelihood.log_likelihood(),
-                               -4048.5113284032036, 3)
+        self.assertAlmostEqual(-4049.401848684305, self.likelihood.log_likelihood(), 3)
 
     def test_log_likelihood_ratio(self):
         """Test log likelihood ratio returns the correct value"""
