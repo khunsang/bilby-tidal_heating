@@ -3,22 +3,20 @@ import bilby
 import numpy as np
 
 outdir = 'outdir'
-label = 'ROQwBilby'
+label = 'roq'
 
 # load in the pieces for the linear part of the ROQ
-basis_matrix_linear = np.load("12D_IMRPhenomP/B_linear.npy")
-basis_matrix_linear = np.array(np.matrix(basis_matrix_linear.T))
+basis_matrix_linear = np.load("12D_IMRPhenomP/B_linear.npy").T
 freq_nodes_linear = np.load("12D_IMRPhenomP/fnodes_linear.npy")
 
 # load in the pieces for the quadratic part of the ROQ
-basic_matrix_quadratic = np.load("12D_IMRPhenomP/B_quadratic.npy")
-basic_matrix_quadratic = np.array(np.matrix(basic_matrix_quadratic.T))
+basic_matrix_quadratic = np.load("12D_IMRPhenomP/B_quadratic.npy").T
 freq_nodes_quadratic = np.load("12D_IMRPhenomP/fnodes_quadratic.npy")
 
 np.random.seed(170808)
 
-duration = 4.
-sampling_frequency = 2048.
+duration = 4
+sampling_frequency = 2048
 
 injection_parameters = dict(
     chirp_mass=36., mass_ratio=0.9, a_1=0.4, a_2=0.3, tilt_1=0.0, tilt_2=0.0,
@@ -34,10 +32,10 @@ waveform_generator = bilby.gw.WaveformGenerator(
     waveform_arguments=waveform_arguments,
     parameter_conversion=bilby.gw.conversion.convert_to_lal_binary_black_hole_parameters)
 
-ifos = bilby.gw.detector.InterferometerList(['H1'])
+ifos = bilby.gw.detector.InterferometerList(['H1', 'L1', 'V1'])
 ifos.set_strain_data_from_power_spectral_densities(
     sampling_frequency=sampling_frequency, duration=duration,
-    start_time=injection_parameters['geocent_time'] - 0.)
+    start_time=injection_parameters['geocent_time'] - 3)
 ifos.inject_signal(waveform_generator=waveform_generator,
                    parameters=injection_parameters)
 
@@ -52,33 +50,26 @@ search_waveform_generator = bilby.gw.waveform_generator.WaveformGenerator(
     parameter_conversion=bilby.gw.conversion.convert_to_lal_binary_black_hole_parameters)
 
 priors = bilby.gw.prior.BBHPriorSet()
-# priors['geocent_time'] = bilby.core.prior.Uniform(
-#     minimum=injection_parameters['geocent_time'] - 1,
-#     maximum=injection_parameters['geocent_time'] + 1,
-#     name='geocent_time', latex_label='$t_c$', unit='$s$')
-for key in ['a_1', 'a_2', 'tilt_1', 'tilt_2',
-            'phi_12', 'phi_jl', 'luminosity_distance']:
+for key in ['a_1', 'a_2', 'tilt_1', 'tilt_2', 'iota', 'phase', 'psi', 'ra',
+            'dec', 'phi_12', 'phi_jl', 'luminosity_distance']:
     priors[key] = injection_parameters[key]
 priors.pop('mass_1')
 priors.pop('mass_2')
-for key in ['mass_ratio', 'chirp_mass', 'iota', 'phase', 'psi', 'ra', 'dec']:
-    priors[key] = injection_parameters[key]
 priors['chirp_mass'] = bilby.core.prior.Uniform(
     15, 40, latex_label='$\\mathcal{M}$')
 priors['mass_ratio'] = bilby.core.prior.Uniform(0.5, 1, latex_label='$q$')
-priors['geocent_time'] = bilby.core.prior.Uniform(1126259642.3, 1126259642.5, latex_label='$t_c$')
+priors['geocent_time'] = bilby.core.prior.Uniform(
+    injection_parameters['geocent_time'] - 0.1,
+    injection_parameters['geocent_time'] + 0.1, latex_label='$t_c$', unit='s')
 
 likelihood = bilby.gw.likelihood.ROQGravitationalWaveTransient(
     interferometers=ifos, waveform_generator=search_waveform_generator,
-    linear_matrix=basis_matrix_linear, quadratic_matrix=basic_matrix_quadratic, prior = priors)
-
-likelihood.parameters.update(injection_parameters)
-print(likelihood.log_likelihood_ratio())
+    linear_matrix=basis_matrix_linear, quadratic_matrix=basic_matrix_quadratic,
+    prior=priors)
 
 result = bilby.run_sampler(
-    likelihood=likelihood, priors=priors, sampler='pymultinest', npoints=500,
+    likelihood=likelihood, priors=priors, sampler='dynesty', npoints=500,
     injection_parameters=injection_parameters, outdir=outdir, label=label)
-    # conversion_function=bilby.gw.conversion.generate_all_bbh_parameters)
 
 # Make a corner plot.
 result.plot_corner()
