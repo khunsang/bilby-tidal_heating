@@ -410,8 +410,7 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
                 self.parameters['geocent_time'], self.parameters['psi'], 'cross')
 
             dt = ifo.time_delay_from_geocenter(
-                self.parameters['ra'],
-                self.parameters['dec'],
+                self.parameters['ra'], self.parameters['dec'],
                 ifo.strain_data.start_time)
             ifo_time = self.parameters['geocent_time'] + dt - \
                 ifo.strain_data.start_time
@@ -442,7 +441,21 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
         return log_l.real
 
     def _closest_time_indices(self, time):
-        """Get the closest an two neighbouring times"""
+        """
+        Get the closest an two neighbouring times
+
+        Parameters
+        ----------
+        time: float
+            Time to check
+
+        Returns
+        -------
+        indices: list
+            Indices nearest to time.
+        in_bounds: bool
+            Whether the indices are for valid times.
+        """
         closest = np.argmin(np.absolute(self.time_samples - time))
         indices = [closest + ii for ii in [-1, 0, 1]]
         in_bounds = (indices[0] >= 0) | (indices[2] < self.time_samples.size)
