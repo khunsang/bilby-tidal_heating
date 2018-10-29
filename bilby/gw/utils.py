@@ -498,53 +498,70 @@ def build_roq_weights(data, basis, deltaF):
     weights = np.dot(data, np.conjugate(basis)) * deltaF * 4.
     return weights
 
-def _block_slices(dim_size, block_size):
-    """Generator that yields slice objects for indexing into
-    sequential blocks of an array along a particular axis
-    Useful for blockwise dot
-    """
-    count = 0
-    while True:
-        yield slice(count, count + block_size, 1)
-        count += block_size
-        if count > dim_size:
-            raise StopIteration
 
-def blockwise_dot(A, B, deltaF, max_elements=int(2**27), out=None):
+def blockwise_dot_product(matrix_a, matrix_b, max_elements=int(2 ** 27),
+                          out=None):
     """
     Memory efficient
     Computes the dot product of two matrices in a block-wise fashion.
-    Only blocks of `A` with a maximum size of `max_elements` will be
+    Only blocks of `matrix_a` with a maximum size of `max_elements` will be
     processed simultaneously.
-    """
-    B = np.conjugate(B)
-    m,  n = A.shape
-    n1, o = B.shape
-    if n1 != n:
-        raise ValueError('matrices are not aligned')
 
-    if A.flags.f_contiguous:
-        # prioritize processing as many columns of A as possible
+    Parameters
+    ----------
+    matrix_a, matrix_b: array-like
+        Matrices to be dot producted, matrix_b is complex conjugated.
+    max_elements: int
+        Maximum number of elements to consider simultaneously, should be memory
+        limited.
+    out: array-like
+        Output array
+
+    Return
+    ------
+    out: array-like
+        Dot producted array
+    """
+    def block_slices(dim_size, block_size):
+        """Generator that yields slice objects for indexing into
+        sequential blocks of an array along a particular axis
+        Useful for blockwise dot
+        """
+        count = 0
+        while True:
+            yield slice(count, count + block_size, 1)
+            count += block_size
+            if count > dim_size:
+                raise StopIteration
+
+    matrix_b = np.conjugate(matrix_b)
+    m, n = matrix_a.shape
+    n1, o = matrix_b.shape
+    if n1 != n:
+        raise ValueError(
+            'Matrices are not aligned, matrix a has shape ' +
+            '{}, matrix b has shape {}.'.format(matrix_a.shape, matrix_b.shape))
+
+    if matrix_a.flags.f_contiguous:
+        # prioritize processing as many columns of matrix_a as possible
         max_cols = max(1, max_elements // m)
-        max_rows =  max_elements // max_cols
+        max_rows = max_elements // max_cols
 
     else:
-        # prioritize processing as many rows of A as possible
+        # prioritize processing as many rows of matrix_a as possible
         max_rows = max(1, max_elements // n)
-        max_cols =  max_elements // max_rows
+        max_cols = max_elements // max_rows
 
     if out is None:
-        out = np.empty((m, o), dtype=np.result_type(A, B))
+        out = np.empty((m, o), dtype=np.result_type(matrix_a, matrix_b))
     elif out.shape != (m, o):
-        raise ValueError('output array has incorrect dimensions')
+        raise ValueError('Output array has incorrect dimensions.')
 
-    for mm in _block_slices(m, max_rows):
-        #print(m, max_rows)
-    #    print(mm[1])
+    for mm in block_slices(m, max_rows):
         out[mm, :] = 0
-        for nn in _block_slices(n, max_cols):
-            A_block = A[mm, nn].copy()  # copy to force a read
-            out[mm, :] += np.dot(A_block, B[nn, :]) * 4 * deltaF
-            del A_block
+        for nn in block_slices(n, max_cols):
+            a_block = matrix_a[mm, nn].copy()  # copy to force a read
+            out[mm, :] += np.dot(a_block, matrix_b[nn, :])
+            del a_block
 
     return out
