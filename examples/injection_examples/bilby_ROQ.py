@@ -49,7 +49,7 @@ search_waveform_generator = bilby.gw.waveform_generator.WaveformGenerator(
                             approximant='IMRPhenomPv2'),
     parameter_conversion=bilby.gw.conversion.convert_to_lal_binary_black_hole_parameters)
 
-priors = bilby.gw.prior.BBHPriorSet()
+priors = bilby.gw.prior.BBHPriorDict()
 for key in ['a_1', 'a_2', 'tilt_1', 'tilt_2', 'iota', 'phase', 'psi', 'ra',
             'dec', 'phi_12', 'phi_jl', 'luminosity_distance']:
     priors[key] = injection_parameters[key]
