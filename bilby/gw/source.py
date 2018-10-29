@@ -371,6 +371,8 @@ def roq(frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
         Dict containing plus and cross modes evaluated at the linear and
         quadratic frequency nodes.
     """
+    if mass_2 > mass_1:
+        return None
 
     frequency_nodes_linear = waveform_arguments['frequency_nodes_linear']
     frequency_nodes_quadratic = waveform_arguments['frequency_nodes_quadratic']
