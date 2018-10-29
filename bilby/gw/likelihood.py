@@ -14,8 +14,9 @@ from ..core.prior import Prior, Uniform
 from .detector import InterferometerList
 from .prior import BBHPriorSet
 from .source import lal_binary_black_hole
-from .utils import noise_weighted_inner_product, build_roq_weights
+from .utils import noise_weighted_inner_product, build_roq_weights, blockwise_dot
 from .waveform_generator import WaveformGenerator
+from math import ceil
 
 
 class GravitationalWaveTransient(likelihood.Likelihood):
@@ -370,14 +371,15 @@ class BasicGravitationalWaveTransient(likelihood.Likelihood):
 
 
 class ROQGravitationalWaveTransient(GravitationalWaveTransient):
-    """reduced order stuff"""
+    """A reduced order quadrature likelihood object"""
     def __init__(self, interferometers, waveform_generator,
-                 linear_matrix, quadratic_matrix):
+                 linear_matrix, quadratic_matrix, prior):
         GravitationalWaveTransient.__init__(
-            self, interferometers, waveform_generator)
+            self, interferometers = interferometers, waveform_generator = waveform_generator, prior = prior)
 
         self.linear_matrix = linear_matrix
         self.quadratic_matrix = quadratic_matrix
+        self.tc = None
         self.weights = dict()
         self.set_weights()
         self.frequency_nodes_linear =\
@@ -385,13 +387,50 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
 
     def set_weights(self):
         for ifo in self.interferometers:
-            self.weights[ifo.name + '_linear'] = build_roq_weights(
-                ifo.frequency_domain_strain[ifo.frequency_mask] /
-                ifo.power_spectral_density_array[ifo.frequency_mask],
-                self.linear_matrix, 1 / ifo.strain_data.duration)
+            deltaF = 1. / ifo.strain_data.duration
+            fHigh = ifo.frequency_array[-1]
+            fLow = self.waveform_generator.waveform_arguments['minimum_frequency']
+            fHigh_index = int(fHigh / deltaF)
+            fLow_index = int(fLow / deltaF)
+            delta_tc = 1. /ifo.strain_data.sampling_frequency
+
+            #only get frequency components up to fhigh
+            self.linear_matrix =\
+                self.linear_matrix.T[0:(fHigh_index - fLow_index)][:]
+            self.quadratic_matrix =\
+                self.quadratic_matrix.T[0:(fHigh_index-fLow_index)][:]
+            self.linear_matrix = self.linear_matrix.T
+            self.quadratic_matrix = self.quadratic_matrix.T
+
+            # array of relative time shifts to be applied to the data, 0
+            tcs = np.linspace(self.prior['geocent_time'].minimum - 0.045,
+                              self.prior['geocent_time'].maximum + 0.045,
+                              ceil((self.prior['geocent_time'].maximum
+                                   - self.prior['geocent_time'].minimum
+                                              + 0.09) / delta_tc))
+            tcs = tcs - ifo.strain_data.start_time
+            self.tc = tcs
+
+            # array to be filled with data, shifted by discrete time tc
+            tc_shifted_data = np.zeros([len(tcs), len(ifo.frequency_array[ifo.frequency_mask])], dtype=complex)
+
+            for j in range(len(tcs)):
+                tc_shifted_data[j] = ifo.frequency_domain_strain[ifo.frequency_mask] * np.exp(1j*2.*np.pi*ifo.frequency_array[ifo.frequency_mask]*tcs[j])
+
+            # max number of double complex elements
+            max_block_gigabytes = 4
+            max_elements = int((max_block_gigabytes * 2 ** 30) / 8)
+
+
+            self.weights[ifo.name + '_linear'] = blockwise_dot(
+                tc_shifted_data/ifo.power_spectral_density_array[ifo.frequency_mask],
+                self.linear_matrix, deltaF, max_elements).T
+
+            del tc_shifted_data
+
             self.weights[ifo.name + '_quadratic'] = build_roq_weights(
                 1 / ifo.power_spectral_density_array[ifo.frequency_mask],
-                self.quadratic_matrix.real, 1 / ifo.strain_data.duration)
+                self.quadratic_matrix.real, deltaF).T
 
     def log_likelihood_ratio(self):
         optimal_snr_squared = 0.
@@ -417,11 +456,28 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
             h_cross_linear = f_cross * waveform['linear']['cross']
             h_plus_quadratic = f_plus * waveform['quadratic']['plus']
             h_cross_quadratic = f_cross * waveform['quadratic']['cross']
+            ifo_time = self.parameters['geocent_time'] + dt - ifo.strain_data.start_time
 
-            matched_filter_snr_squared += np.vdot(
-                (h_plus_linear + h_cross_linear) *
-                np.exp(- 1j * 2 * np.pi * dt * self.frequency_nodes_linear),
-                self.weights[ifo.name + '_linear'])
+            h_linear = h_plus_linear + h_cross_linear
+            closest_time_index = np.argmin(np.absolute(self.tc - (ifo_time)))
+
+            if closest_time_index < 1 or closest_time_index > self.tc.size - 2:
+                return np.nan_to_num(-np.nan)
+            else:
+                ROQ_before = (np.vdot(
+                    h_linear, self.weights[ifo.name + '_linear'].T[closest_time_index-1])).real
+                ROQ_close = (np.vdot(
+                    h_linear, self.weights[ifo.name + '_linear'].T[closest_time_index])).real
+                ROQ_after = (np.vdot(
+                    h_linear, self.weights[ifo.name + '_linear'].T[closest_time_index+1])).real
+
+                ROQ_array = np.array([ROQ_before, ROQ_close, ROQ_after])
+
+                interpolant = interp1d(
+                    self.tc[closest_time_index-1:closest_time_index+2],
+                    ROQ_array, kind = 'quadratic')
+
+                matched_filter_snr_squared += interpolant(ifo_time)
 
             optimal_snr_squared += \
                 np.vdot(np.abs(h_plus_quadratic + h_cross_quadratic)**2,

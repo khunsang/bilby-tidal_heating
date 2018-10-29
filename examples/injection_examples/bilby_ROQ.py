@@ -10,7 +10,6 @@ basis_matrix_linear = np.load("12D_IMRPhenomP/B_linear.npy")
 basis_matrix_linear = np.array(np.matrix(basis_matrix_linear.T))
 freq_nodes_linear = np.load("12D_IMRPhenomP/fnodes_linear.npy")
 
-print(basis_matrix_linear.shape)
 # load in the pieces for the quadratic part of the ROQ
 basic_matrix_quadratic = np.load("12D_IMRPhenomP/B_quadratic.npy")
 basic_matrix_quadratic = np.array(np.matrix(basic_matrix_quadratic.T))
@@ -38,7 +37,7 @@ waveform_generator = bilby.gw.WaveformGenerator(
 ifos = bilby.gw.detector.InterferometerList(['H1'])
 ifos.set_strain_data_from_power_spectral_densities(
     sampling_frequency=sampling_frequency, duration=duration,
-    start_time=injection_parameters['geocent_time'] - 0)
+    start_time=injection_parameters['geocent_time'] - 0.)
 ifos.inject_signal(waveform_generator=waveform_generator,
                    parameters=injection_parameters)
 
@@ -58,7 +57,7 @@ priors = bilby.gw.prior.BBHPriorSet()
 #     maximum=injection_parameters['geocent_time'] + 1,
 #     name='geocent_time', latex_label='$t_c$', unit='$s$')
 for key in ['a_1', 'a_2', 'tilt_1', 'tilt_2',
-            'phi_12', 'phi_jl', 'geocent_time', 'luminosity_distance']:
+            'phi_12', 'phi_jl', 'luminosity_distance']:
     priors[key] = injection_parameters[key]
 priors.pop('mass_1')
 priors.pop('mass_2')
@@ -67,16 +66,17 @@ for key in ['mass_ratio', 'chirp_mass', 'iota', 'phase', 'psi', 'ra', 'dec']:
 priors['chirp_mass'] = bilby.core.prior.Uniform(
     15, 40, latex_label='$\\mathcal{M}$')
 priors['mass_ratio'] = bilby.core.prior.Uniform(0.5, 1, latex_label='$q$')
+priors['geocent_time'] = bilby.core.prior.Uniform(1126259642.3, 1126259642.5, latex_label='$t_c$')
 
 likelihood = bilby.gw.likelihood.ROQGravitationalWaveTransient(
     interferometers=ifos, waveform_generator=search_waveform_generator,
-    linear_matrix=basis_matrix_linear, quadratic_matrix=basic_matrix_quadratic)
+    linear_matrix=basis_matrix_linear, quadratic_matrix=basic_matrix_quadratic, prior = priors)
 
 likelihood.parameters.update(injection_parameters)
 print(likelihood.log_likelihood_ratio())
 
 result = bilby.run_sampler(
-    likelihood=likelihood, priors=priors, sampler='cpnest', npoints=100,
+    likelihood=likelihood, priors=priors, sampler='pymultinest', npoints=500,
     injection_parameters=injection_parameters, outdir=outdir, label=label)
     # conversion_function=bilby.gw.conversion.generate_all_bbh_parameters)
 
