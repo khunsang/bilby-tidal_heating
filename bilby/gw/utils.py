@@ -532,7 +532,7 @@ def blockwise_dot_product(matrix_a, matrix_b, max_elements=int(2 ** 27),
             yield slice(count, count + block_size, 1)
             count += block_size
             if count > dim_size:
-                raise StopIteration
+                return
 
     matrix_b = np.conjugate(matrix_b)
     m, n = matrix_a.shape
