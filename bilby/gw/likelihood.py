@@ -461,7 +461,7 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
         """
         closest = np.argmin(np.absolute(self.time_samples - time))
         indices = [closest + ii for ii in [-1, 0, 1]]
-        in_bounds = (indices[0] >= 0) | (indices[2] < self.time_samples.size)
+        in_bounds = (indices[0] >= 0) & (indices[2] < self.time_samples.size)
         return indices, in_bounds
 
     def _set_weights(self):
