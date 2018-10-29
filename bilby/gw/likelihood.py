@@ -400,6 +400,9 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
 
         waveform = self.waveform_generator.frequency_domain_strain(
             self.parameters)
+        if waveform is None:
+            return np.nan_to_num(-np.inf)
+
         for ifo in self.interferometers:
 
             f_plus = ifo.antenna_response(
@@ -475,8 +478,6 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
                 self.linear_matrix[:, :sum(ifo.frequency_mask)]
             self.quadratic_matrix = \
                 self.quadratic_matrix[:, :sum(ifo.frequency_mask)]
-            self.linear_matrix = self.linear_matrix.T
-            self.quadratic_matrix = self.quadratic_matrix.T
 
             # array of relative time shifts to be applied to the data
             # 0.045s comes from time for GW to traverse the Earth
@@ -515,13 +516,13 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
             self.weights[ifo.name + '_linear'] = blockwise_dot_product(
                 tc_shifted_data /
                 ifo.power_spectral_density_array[ifo.frequency_mask],
-                self.linear_matrix.T, max_elements) * 4 / ifo.strain_data.duration
+                self.linear_matrix, max_elements) * 4 / ifo.strain_data.duration
 
             del tc_shifted_data
 
             self.weights[ifo.name + '_quadratic'] = build_roq_weights(
                 1 / ifo.power_spectral_density_array[ifo.frequency_mask],
-                self.quadratic_matrix.real.T, 1 / ifo.strain_data.duration)
+                self.quadratic_matrix.real, 1 / ifo.strain_data.duration)
 
 
 def get_binary_black_hole_likelihood(interferometers):
@@ -529,7 +530,7 @@ def get_binary_black_hole_likelihood(interferometers):
 
     Parameters
     ----------
-    interferometers: list
+    interferometers: {bilby.gw.detector.InterferometerList, list}
         A list of `bilby.detector.Interferometer` instances, typically the
         output of either `bilby.detector.get_interferometer_with_open_data`
         or `bilby.detector.get_interferometer_with_fake_noise_and_injection`
