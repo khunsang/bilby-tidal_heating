@@ -6,11 +6,11 @@ import pandas as pd
 import corner
 import matplotlib
 import matplotlib.pyplot as plt
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 
 from . import utils
 from .utils import logger, infer_parameters_from_function
-from .prior import PriorSet, DeltaFunction
+from .prior import PriorDict, DeltaFunction
 
 
 def result_file_name(outdir, label):
@@ -30,15 +30,15 @@ def result_file_name(outdir, label):
     return '{}/{}_result.h5'.format(outdir, label)
 
 
-def read_in_result(outdir=None, label=None, filename=None):
+def read_in_result(filename=None, outdir=None, label=None):
     """ Read in a saved .h5 data file
 
     Parameters
     ----------
-    outdir, label: str
-        If given, use the default naming convention for saved results file
     filename: str
         If given, try to load from this filename
+    outdir, label: str
+        If given, use the default naming convention for saved results file
 
     Returns
     -------
@@ -51,73 +51,96 @@ def read_in_result(outdir=None, label=None, filename=None):
 
     """
     if filename is None:
-        filename = result_file_name(outdir, label)
-    elif (outdir is None or label is None) and filename is None:
-        raise ValueError("No information given to load file")
+        if (outdir is None) and (label is None):
+            raise ValueError("No information given to load file")
+        else:
+            filename = result_file_name(outdir, label)
     if os.path.isfile(filename):
-        return Result(deepdish.io.load(filename))
+        return Result(**deepdish.io.load(filename))
     else:
-        raise ValueError("No result found")
+        raise IOError("No result '{}' found".format(filename))
 
 
-class Result(dict):
-    def __init__(self, dictionary=None):
-        """ A class to save the results of the sampling run.
+class Result(object):
+    def __init__(self, label='no_label', outdir='.', sampler=None,
+                 search_parameter_keys=None, fixed_parameter_keys=None,
+                 priors=None, sampler_kwargs=None, injection_parameters=None,
+                 meta_data=None, posterior=None, samples=None,
+                 nested_samples=None, log_evidence=np.nan,
+                 log_evidence_err=np.nan, log_noise_evidence=np.nan,
+                 log_bayes_factor=np.nan, log_likelihood_evaluations=None,
+                 sampling_time=None, nburn=None, walkers=None,
+                 max_autocorrelation_time=None, parameter_labels=None,
+                 parameter_labels_with_unit=None):
+        """ A class to store the results of the sampling run
 
         Parameters
         ----------
-        dictionary: dict
-            A dictionary containing values to be set in this instance
+        label, outdir, sampler: str
+            The label, output directory, and sampler used
+        search_parameter_keys, fixed_parameter_keys: list
+            Lists of the search and fixed parameter keys. Elemenents of the
+            list should be of type `str` and matchs the keys of the `prior`
+        priors: dict, bilby.core.prior.PriorDict
+            A dictionary of the priors used in the run
+        sampler_kwargs: dict
+            Key word arguments passed to the sampler
+        injection_parameters: dict
+            A dictionary of the injection parameters
+        meta_data: dict
+            A dictionary of meta data to store about the run
+        posterior: pandas.DataFrame
+            A pandas data frame of the posterior
+        samples, nested_samples: array_like
+            An array of the output posterior samples and the unweighted samples
+        log_evidence, log_evidence_err, log_noise_evidence, log_bayes_factor: float
+            Natural log evidences
+        log_likelihood_evaluations: array_like
+            The evaluations of the likelihood for each sample point
+        sampling_time: float
+            The time taken to complete the sampling
+        nburn: int
+            The number of burn-in steps discarded for MCMC samplers
+        walkers: array_like
+            The samplers taken by a ensemble MCMC samplers
+        max_autocorrelation_time: float
+            The estimated maximum autocorrelation time for MCMC samplers
+        parameter_labels, parameter_labels_with_unit: list
+            Lists of the latex-formatted parameter labels
+
+        Note:
+            All sampling output parameters, e.g. the samples themselves are
+            typically not given at initialisation, but set at a later stage.
+
         """
 
-        # Set some defaults
-        self.outdir = '.'
-        self.label = 'no_name'
+        self.label = label
+        self.outdir = os.path.abspath(outdir)
+        self.sampler = sampler
+        self.search_parameter_keys = search_parameter_keys
+        self.fixed_parameter_keys = fixed_parameter_keys
+        self.parameter_labels = parameter_labels
+        self.parameter_labels_with_unit = parameter_labels_with_unit
+        self.priors = priors
+        self.sampler_kwargs = sampler_kwargs
+        self.meta_data = meta_data
+        self.injection_parameters = injection_parameters
+        self.posterior = posterior
+        self.samples = samples
+        self.nested_samples = nested_samples
+        self.walkers = walkers
+        self.nburn = nburn
+        self.log_evidence = log_evidence
+        self.log_evidence_err = log_evidence_err
+        self.log_noise_evidence = log_noise_evidence
+        self.log_bayes_factor = log_bayes_factor
+        self.log_likelihood_evaluations = log_likelihood_evaluations
+        self.sampling_time = sampling_time
 
-        dict.__init__(self)
-        if type(dictionary) is dict:
-            for key in dictionary:
-                val = self._standardise_a_string(dictionary[key])
-                setattr(self, key, val)
-
-        if getattr(self, 'priors', None) is not None:
-            self.priors = PriorSet(self.priors)
-
-    def __add__(self, other):
-        matches = ['sampler', 'search_parameter_keys']
-        for match in matches:
-            # The 1 and 0 here ensure that if either doesn't have a match for
-            # some reason, a error will be thrown.
-            if getattr(other, match, 1) != getattr(self, match, 0):
-                raise ValueError(
-                    "Unable to add results generated with different {}".format(match))
-
-        self.samples = np.concatenate([self.samples, other.samples])
-        self.posterior = pd.concat([self.posterior, other.posterior])
-        return self
-
-    def __dir__(self):
-        """ Adds tab completion in ipython
-
-        See: http://ipython.org/ipython-doc/dev/config/integrating.html
-
-        """
-        methods = ['plot_corner', 'save_to_file', 'save_posterior_samples']
-        return self.keys() + methods
-
-    def __getattr__(self, name):
-        try:
-            return self[name]
-        except KeyError:
-            raise AttributeError(name)
-
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
-    def __repr__(self):
+    def __str__(self):
         """Print a summary """
-        if hasattr(self, 'posterior'):
-            if hasattr(self, 'log_noise_evidence'):
+        if getattr(self, 'posterior', None) is not None:
+            if getattr(self, 'log_noise_evidence', None) is not None:
                 return ("nsamples: {:d}\n"
                         "log_noise_evidence: {:6.3f}\n"
                         "log_evidence: {:6.3f} +/- {:6.3f}\n"
@@ -132,40 +155,109 @@ class Result(dict):
         else:
             return ''
 
-    @staticmethod
-    def _standardise_a_string(item):
-        """ When reading in data, ensure all strings are decoded correctly
-
-        Parameters
-        ----------
-        item: str
-
-        Returns
-        -------
-        str: decoded string
-        """
-        if type(item) in [bytes]:
-            return item.decode()
+    @property
+    def priors(self):
+        if self._priors is not None:
+            return self._priors
         else:
-            return item
+            raise ValueError('Result object has no priors')
 
-    @staticmethod
-    def _standardise_strings(item):
-        """
+    @priors.setter
+    def priors(self, priors):
+        if isinstance(priors, dict):
+            self._priors = PriorDict(priors)
+            if self.parameter_labels is None:
+                self.parameter_labels = [self.priors[k].latex_label for k in
+                                         self.search_parameter_keys]
+            if self.parameter_labels_with_unit is None:
+                self.parameter_labels_with_unit = [
+                    self.priors[k].latex_label_with_unit for k in
+                    self.search_parameter_keys]
 
-        Parameters
-        ----------
-        item: list
-            List of strings to be decoded
+        elif priors is None:
+            self._priors = priors
+            self.parameter_labels = self.search_parameter_keys
+            self.parameter_labels_with_unit = self.search_parameter_keys
+        else:
+            raise ValueError("Input priors not understood")
 
-        Returns
-        -------
-        list: list of decoded strings in item
+    @property
+    def samples(self):
+        """ An array of samples """
+        if self._samples is not None:
+            return self._samples
+        else:
+            raise ValueError("Result object has no stored samples")
 
-        """
-        if type(item) in [list]:
-            item = [Result._standardise_a_string(i) for i in item]
-        return item
+    @samples.setter
+    def samples(self, samples):
+        self._samples = samples
+
+    @property
+    def nested_samples(self):
+        """" An array of unweighted samples """
+        if self._nested_samples is not None:
+            return self._nested_samples
+        else:
+            raise ValueError("Result object has no stored nested samples")
+
+    @nested_samples.setter
+    def nested_samples(self, nested_samples):
+        self._nested_samples = nested_samples
+
+    @property
+    def walkers(self):
+        """" An array of the ensemble walkers """
+        if self._walkers is not None:
+            return self._walkers
+        else:
+            raise ValueError("Result object has no stored walkers")
+
+    @walkers.setter
+    def walkers(self, walkers):
+        self._walkers = walkers
+
+    @property
+    def nburn(self):
+        """" An array of the ensemble walkers """
+        if self._nburn is not None:
+            return self._nburn
+        else:
+            raise ValueError("Result object has no stored nburn")
+
+    @nburn.setter
+    def nburn(self, nburn):
+        self._nburn = nburn
+
+    @property
+    def posterior(self):
+        """ A pandas data frame of the posterior """
+        if self._posterior is not None:
+            return self._posterior
+        else:
+            raise ValueError("Result object has no stored posterior")
+
+    @posterior.setter
+    def posterior(self, posterior):
+        self._posterior = posterior
+
+    def _get_save_data_dictionary(self):
+        save_attrs = [
+            'label', 'outdir', 'sampler', 'log_evidence', 'log_evidence_err',
+            'log_noise_evidence', 'log_bayes_factor', 'priors', 'posterior',
+            'injection_parameters', 'meta_data', 'search_parameter_keys',
+            'fixed_parameter_keys', 'sampling_time', 'sampler_kwargs',
+            'log_likelihood_evaluations', 'samples', 'nested_samples',
+            'walkers', 'nburn', 'parameter_labels',
+            'parameter_labels_with_unit']
+        dictionary = OrderedDict()
+        for attr in save_attrs:
+            try:
+                dictionary[attr] = getattr(self, attr)
+            except ValueError as e:
+                logger.debug("Unable to save {}, message: {}".format(attr, e))
+                pass
+        return dictionary
 
     def save_to_file(self, overwrite=False):
         """
@@ -192,15 +284,15 @@ class Result(dict):
         logger.debug("Saving result to {}".format(file_name))
 
         # Convert the prior to a string representation for saving on disk
-        dictionary = dict(self)
+        dictionary = self._get_save_data_dictionary()
         if dictionary.get('priors', False):
             dictionary['priors'] = {key: str(self.priors[key]) for key in self.priors}
 
-        # Convert callable kwargs to strings to avoid pickling issues
-        if hasattr(self, 'kwargs'):
-            for key in self.kwargs:
-                if hasattr(self.kwargs[key], '__call__'):
-                    self.kwargs[key] = str(self.kwargs[key])
+        # Convert callable sampler_kwargs to strings to avoid pickling issues
+        if dictionary.get('sampler_kwargs', None) is not None:
+            for key in dictionary['sampler_kwargs']:
+                if hasattr(dictionary['sampler_kwargs'][key], '__call__'):
+                    dictionary['sampler_kwargs'][key] = str(dictionary['sampler_kwargs'])
 
         try:
             deepdish.io.save(file_name, dictionary)
@@ -211,6 +303,7 @@ class Result(dict):
     def save_posterior_samples(self):
         """Saves posterior samples to a file"""
         filename = '{}/{}_posterior_samples.txt'.format(self.outdir, self.label)
+        utils.check_directory_exists_and_if_not_mkdir(self.outdir)
         self.posterior.to_csv(filename, index=False, header=True)
 
     def get_latex_labels_from_parameter_keys(self, keys):
@@ -285,22 +378,112 @@ class Result(dict):
 
         Returns
         -------
-        string: str
-            A string of latex-formatted text of the mean and 1-sigma quantiles
+        summary: namedtuple
+            An object with attributes, median, lower, upper and string
 
         """
+        summary = namedtuple('summary', ['median', 'lower', 'upper', 'string'])
+
         if len(quantiles) != 2:
             raise ValueError("quantiles must be of length 2")
 
         quants_to_compute = np.array([quantiles[0], 0.5, quantiles[1]])
         quants = np.percentile(self.posterior[key], quants_to_compute * 100)
-        median = quants[1]
-        upper = quants[2] - median
-        lower = median - quants[0]
+        summary.median = quants[1]
+        summary.plus = quants[2] - summary.median
+        summary.minus = summary.median - quants[0]
 
         fmt = "{{0:{0}}}".format(fmt).format
-        string = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
-        return string.format(fmt(median), fmt(lower), fmt(upper))
+        string_template = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
+        summary.string = string_template.format(
+            fmt(summary.median), fmt(summary.minus), fmt(summary.plus))
+        return summary
+
+    def plot_marginals(self, parameters=None, priors=None, titles=True,
+                       file_base_name=None, bins=50, label_fontsize=16,
+                       title_fontsize=16, quantiles=[0.16, 0.84], dpi=300):
+        """ Plot 1D marginal distributions
+
+        Parameters
+        ----------
+        parameters: (list, dict), optional
+            If given, either a list of the parameter names to include, or a
+            dictionary of parameter names and their "true" values to plot.
+        priors: {bool (False), bilby.core.prior.PriorDict}
+            If true, add the stored prior probability density functions to the
+            one-dimensional marginal distributions. If instead a PriorDict
+            is provided, this will be plotted.
+        titles: bool
+            If true, add 1D titles of the median and (by default 1-sigma)
+            error bars. To change the error bars, pass in the quantiles kwarg.
+            See method `get_one_dimensional_median_and_error_bar` for further
+            details). If `quantiles=None` is passed in, no title is added.
+        file_base_name: str, optional
+            If given, the base file name to use (by default `outdir/label_` is
+            used)
+        bins: int
+            The number of histogram bins
+        label_fontsize, title_fontsize: int
+            The fontsizes for the labels and titles
+        quantiles: list
+            A length-2 list of the lower and upper-quantiles to calculate
+            the errors bars for.
+        dpi: int
+            Dots per inch resolution of the plot
+
+        Returns
+        -------
+        figures: dictionary
+            A dictionary of the matplotlib figures
+
+        """
+
+        if isinstance(parameters, dict):
+            plot_parameter_keys = list(parameters.keys())
+            truths = list(parameters.values())
+        elif parameters is None:
+            plot_parameter_keys = self.search_parameter_keys
+            truths = None
+        else:
+            plot_parameter_keys = list(parameters)
+            truths = None
+
+        labels = self.get_latex_labels_from_parameter_keys(plot_parameter_keys)
+        if file_base_name is None:
+            file_base_name = '{}/{}_'.format(self.outdir, self.label)
+
+        if priors is True:
+            priors = getattr(self, 'priors', False)
+        elif isinstance(priors, (dict)) or priors in [False, None]:
+            pass
+        else:
+            raise ValueError('Input priors={} not understood'.format(priors))
+
+        figures = dict()
+        for i, key in enumerate(plot_parameter_keys):
+            fig, ax = plt.subplots()
+            ax.hist(self.posterior[key].values, bins=bins, density=True,
+                    histtype='step')
+            ax.set_xlabel(labels[i], fontsize=label_fontsize)
+            if truths is not None:
+                ax.axvline(truths[i], ls='--', color='orange')
+
+            summary = self.get_one_dimensional_median_and_error_bar(
+                key, quantiles=quantiles)
+            ax.axvline(summary.median - summary.minus, ls='--', color='C0')
+            ax.axvline(summary.median + summary.plus, ls='--', color='C0')
+            if titles:
+                ax.set_title(summary.string, fontsize=title_fontsize)
+
+            if isinstance(priors, dict):
+                theta = np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 300)
+                ax.plot(theta, priors[key].prob(theta), color='C2')
+
+            fig.tight_layout()
+            fig.savefig(file_base_name + key)
+            figures[key] = fig
+
+        return figures
 
     def plot_corner(self, parameters=None, priors=None, titles=True, save=True,
                     filename=None, dpi=300, **kwargs):
@@ -311,9 +494,9 @@ class Result(dict):
         parameters: (list, dict), optional
             If given, either a list of the parameter names to include, or a
             dictionary of parameter names and their "true" values to plot.
-        priors: {bool (False), bilby.core.prior.PriorSet}
+        priors: {bool (False), bilby.core.prior.PriorDict}
             If true, add the stored prior probability density functions to the
-            one-dimensional marginal distributions. If instead a PriorSet
+            one-dimensional marginal distributions. If instead a PriorDict
             is provided, this will be plotted.
         titles: bool
             If true, add 1D titles of the median and (by default 1-sigma)
@@ -418,7 +601,7 @@ class Result(dict):
                 ax = axes[i + i * len(plot_parameter_keys)]
                 if ax.title.get_text() == '':
                     ax.set_title(self.get_one_dimensional_median_and_error_bar(
-                        par, quantiles=kwargs['quantiles']),
+                        par, quantiles=kwargs['quantiles']).string,
                         **kwargs['title_kwargs'])
 
         #  Add priors to the 1D plots
@@ -516,11 +699,15 @@ class Result(dict):
             s = model_posterior.sample().to_dict('records')[0]
             ax.plot(xsmooth, model(xsmooth, **s), alpha=0.25, lw=0.1, color='r',
                     label=draws_label)
-        if all(~np.isnan(self.posterior.log_likelihood)):
-            logger.info('Plotting maximum likelihood')
-            s = model_posterior.ix[self.posterior.log_likelihood.idxmax()]
-            ax.plot(xsmooth, model(xsmooth, **s), lw=1, color='k',
-                    label=maxl_label)
+        try:
+            if all(~np.isnan(self.posterior.log_likelihood)):
+                logger.info('Plotting maximum likelihood')
+                s = model_posterior.ix[self.posterior.log_likelihood.idxmax()]
+                ax.plot(xsmooth, model(xsmooth, **s), lw=1, color='k',
+                        label=maxl_label)
+        except AttributeError:
+            logger.debug(
+                "No log likelihood values stored, unable to plot max")
 
         ax.plot(x, y, data_fmt, markersize=2, label=data_label)
 
@@ -535,13 +722,16 @@ class Result(dict):
         ax.legend(numpoints=3)
         fig.tight_layout()
         if filename is None:
+            utils.check_directory_exists_and_if_not_mkdir(self.outdir)
             filename = '{}/{}_plot_with_data'.format(self.outdir, self.label)
         fig.savefig(filename, dpi=dpi)
 
     def samples_to_posterior(self, likelihood=None, priors=None,
                              conversion_function=None):
         """
-        Convert array of samples to posterior (a Pandas data frame).
+        Convert array of samples to posterior (a Pandas data frame)
+
+        Also applies the conversion function to any stored posterior
 
         Parameters
         ----------
@@ -553,7 +743,9 @@ class Result(dict):
             Function which adds in extra parameters to the data frame,
             should take the data_frame, likelihood and prior as arguments.
         """
-        if hasattr(self, 'posterior') is False:
+        try:
+            data_frame = self.posterior
+        except ValueError:
             data_frame = pd.DataFrame(
                 self.samples, columns=self.search_parameter_keys)
             for key in priors:
@@ -563,10 +755,6 @@ class Result(dict):
                     data_frame[key] = priors[key]
             data_frame['log_likelihood'] = getattr(
                 self, 'log_likelihood_evaluations', np.nan)
-            # remove the array of samples
-            del self.samples
-        else:
-            data_frame = self.posterior
         if conversion_function is not None:
             data_frame = conversion_function(data_frame, likelihood, priors)
         self.posterior = data_frame
@@ -577,7 +765,7 @@ class Result(dict):
 
         Parameters
         ----------
-        priors: dict, PriorSet
+        priors: dict, PriorDict
             Prior distributions
         """
         self.prior_values = pd.DataFrame()
@@ -589,7 +777,7 @@ class Result(dict):
                     self.prior_values[key]\
                         = priors[key].prob(self.posterior[key].values)
 
-    def check_attribute_match_to_other_object(self, name, other_object):
+    def _check_attribute_match_to_other_object(self, name, other_object):
         """ Check attribute name exists in other_object and is the same
 
         Parameters

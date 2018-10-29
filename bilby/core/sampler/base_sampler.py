@@ -3,7 +3,7 @@ import datetime
 import numpy as np
 from pandas import DataFrame
 from ..utils import logger, command_line_args
-from ..prior import Prior, PriorSet
+from ..prior import Prior, PriorDict
 from ..result import Result, read_in_result
 
 
@@ -14,7 +14,7 @@ class Sampler(object):
     ----------
     likelihood: likelihood.Likelihood
         A  object with a log_l method
-    priors: bilby.core.prior.PriorSet, dict
+    priors: bilby.core.prior.PriorDict, dict
         Priors to be used in the search.
         This has attributes for each parameter to be sampled.
     external_sampler: str, Sampler, optional
@@ -29,13 +29,17 @@ class Sampler(object):
         or just the log-likelihood
     plot: bool, optional
         Switch to set whether or not you want to create traceplots
+    injection_parameters:
+        A dictionary of the injection parameters
+    meta_data:
+        A dictionary of extra meta data to store in the result
     **kwargs: dict
 
     Attributes
     -------
     likelihood: likelihood.Likelihood
         A  object with a log_l method
-    priors: bilby.core.prior.PriorSet
+    priors: bilby.core.prior.PriorDict
         Priors to be used in the search.
         This has attributes for each parameter to be sampled.
     external_sampler: Module
@@ -72,14 +76,17 @@ class Sampler(object):
 
     def __init__(
             self, likelihood, priors, outdir='outdir', label='label',
-            use_ratio=False, plot=False, skip_import_verification=False, **kwargs):
+            use_ratio=False, plot=False, skip_import_verification=False,
+            injection_parameters=None, meta_data=None, **kwargs):
         self.likelihood = likelihood
-        if isinstance(priors, PriorSet):
+        if isinstance(priors, PriorDict):
             self.priors = priors
         else:
-            self.priors = PriorSet(priors)
+            self.priors = PriorDict(priors)
         self.label = label
         self.outdir = outdir
+        self.injection_parameters = injection_parameters
+        self.meta_data = meta_data
         self.use_ratio = use_ratio
         if not skip_import_verification:
             self._verify_external_sampler()
@@ -186,19 +193,13 @@ class Sampler(object):
         bilby.core.result.Result: An initial template for the result
 
         """
-        result = Result()
-        result.sampler = self.__class__.__name__.lower()
-        result.search_parameter_keys = self.__search_parameter_keys
-        result.fixed_parameter_keys = self.__fixed_parameter_keys
-        result.parameter_labels = [
-            self.priors[k].latex_label for k in
-            self.__search_parameter_keys]
-        result.parameter_labels_with_unit = [
-            self.priors[k].latex_label_with_unit for k in
-            self.__search_parameter_keys]
-        result.label = self.label
-        result.outdir = self.outdir
-        result.kwargs = self.kwargs
+        result = Result(label=self.label, outdir=self.outdir,
+                        sampler=self.__class__.__name__.lower(),
+                        search_parameter_keys=self.__search_parameter_keys,
+                        fixed_parameter_keys=self.__fixed_parameter_keys,
+                        priors=self.priors, meta_data=self.meta_data,
+                        injection_parameters=self.injection_parameters,
+                        sampler_kwargs=self.kwargs)
         return result
 
     def _check_if_priors_can_be_sampled(self):
@@ -358,8 +359,9 @@ class Sampler(object):
             return
 
         try:
-            self.cached_result = read_in_result(self.outdir, self.label)
-        except ValueError:
+            self.cached_result = read_in_result(
+                outdir=self.outdir, label=self.label)
+        except IOError:
             self.cached_result = None
 
         if command_line_args.use_cached:
@@ -373,7 +375,7 @@ class Sampler(object):
                           'kwargs']
             use_cache = True
             for key in check_keys:
-                if self.cached_result.check_attribute_match_to_other_object(
+                if self.cached_result._check_attribute_match_to_other_object(
                         key, self) is False:
                     logger.debug("Cached value {} is unmatched".format(key))
                     use_cache = False

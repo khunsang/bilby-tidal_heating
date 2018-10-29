@@ -3,6 +3,24 @@
 ## Unreleased
 
 Changes currently on master, but not under a tag.
+- Renamed `PriorSet` to `PriorDict`
+- Renamed `BBHPriorSet` to `BBHPriorDict`
+- Renamed `BNSPriorSet` to `BNSPriorDict`
+- Renamed `CalibrationPriorSet` to `CalibrationPriorDict`
+
+- Fixed a bug which caused `Interferometer.detector_tensor` not to update when `latitude`, `longitude`, `xarm_azimuth`, `yarm_azimuth`, `xarm_tilt`, `yarm_tilt` were updated.
+
+### Changes
+- Switch the ordering the key-word arguments in `result.read_in_result` to put
+  `filename` first. This allows users to quickly read in results by filename
+- Result object no longer a child of `dict`. Additionally, the list of
+  attributes and saved attributes is standardised
+- The above changes effect the saving of posteriors. Users can expect that
+  opening files made in python 2(3) which where written in 3(2) may no longer
+  work. It was felt that the overheads of maintaining cross-version
+  compatibility were too much. Note, working in only python 2 or 3, we do not
+  expect users to encounter issues.
+- Intermediate data products of samples, nested_samples are stored in the h5
 
 ## [0.3.1] 2018-11-06
 
@@ -88,7 +106,7 @@ re-instantiate the Prior in most cases
 
 ### Added
 - InterferometerStrainData now handles both time-domain and frequencu-domain data
-- Adds documentation on setting data (https://monash.docs.ligo.org/bilby/transient-gw-data.html)
+- Adds documentation on setting data (https://lscsoft.docs.ligo.org/bilby/transient-gw-data.html)
 - Checkpointing for `dynesty`: the sampling will be checkpointed every 10 minutes (approximately) and can be resumed.
 - Add functionality to plot multiple results in a corner plot, see `bilby.core.result.plot_multiple()`.
 - Likelihood evaluations are now saved along with the posteriors.
@@ -115,9 +133,8 @@ First `pip` installable version https://pypi.org/project/BILBY/ .
 - Major effort to update all docstrings and add some documentation.
 - Marginalized likelihoods.
 - Examples of searches for gravitational waves from a Supernova and using a sine-Gaussian.
-- A `PriorSet` to handle sets of priors and allows reading in from a standardised prior file (see https://monash.docs.ligo.org/bilby/prior.html).
+- A `PriorSet` to handle sets of priors and allows reading in from a standardised prior file (see https://lscsoft.docs.ligo.org/bilby/prior.html).
 - A standardised file for storing detector data.
 
 ### Removed
 - All chainconsumer dependency as this was causing issues.
-
