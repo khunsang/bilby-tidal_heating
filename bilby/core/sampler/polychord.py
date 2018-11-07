@@ -4,6 +4,7 @@ import numpy as np
 
 from .base_sampler import NestedSampler
 from ..utils import logger
+from ..result import Result
 
 try:
     import PyPolyChord
@@ -54,7 +55,7 @@ class Polychord(NestedSampler):
         PyPolyChord.run_polychord(loglikelihood=self.log_likelihood, nDims=self.ndim,
                                   nDerived=self.ndim, settings=settings, prior=self.prior_transform)
 
-        return None
+        return Result()
 
     def _setup_dynamic_defaults(self):
         """ Sets up some interdependent default argument if none are given by the user """
