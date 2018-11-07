@@ -1,63 +1,66 @@
 from __future__ import absolute_import
 
-from .base_sampler import NestedSampler
 import numpy as np
-
 import PyPolyChord
 from PyPolyChord.settings import PolyChordSettings
-from PyPolyChord.priors import UniformPrior
 
-n_dims = 3
-n_derived = 1
+from .base_sampler import NestedSampler
+from ..utils import logger
 
-
-def likelihood(theta):
-    """ Simple Gaussian Likelihood"""
-
-    sigma = 0.1
-    nDims = len(theta)
-
-    r2 = sum(theta**2)
-
-    log_l = -np.log(2*np.pi*sigma*sigma)*nDims/2.0
-    log_l += -r2/2/sigma/sigma
-
-    return log_l, [r2]
+# from PyPolyChord.priors import UniformPrior
 
 
-def prior(hypercube):
-    """ Uniform prior from [-1,1]^D. """
-    return UniformPrior(-1, 1)(hypercube)
-
-
-def dumper(live, dead, logweights, logZ, logZerr):
-    print("Last dead point:", dead[-1])
-
-
-try:
-    import getdist.plots
-    import matplotlib.pyplot as plt
-    posterior = output.posterior
-    g = getdist.plots.getSubplotPlotter()
-    g.triangle_plot(posterior, filled=True)
-    plt.show()
-except ImportError:
-    print("Install matplotlib and getdist for plotting examples")
-
-
-class BBPolychord(NestedSampler):
-
-    default_kwargs = dict()
+class Polychord(NestedSampler):
+    default_kwargs = dict(use_polychord_defaults=False, nlive=None, num_repeats=None,
+                          nprior=-1, do_clustering=True, feedback=1, precision_criterion=0.001,
+                          logzero=-1e30, max_ndead=-1, boost_posterior=0.0, posteriors=True,
+                          equals=True, cluster_posteriors=True, write_resume=True,
+                          write_paramnames=False, read_resume=True, write_stats=True,
+                          write_live=True, write_dead=True, write_prior=True,
+                          compression_factor=np.exp(-1), base_dir='polychord_chains',
+                          file_root='test', seed=-1, grade_dims=None, grade_frac=None, nlives={})
 
     def run_sampler(self):
-        import pypolychord
+        if self.kwargs['use_polychord_defaults']:
+            settings = PolyChordSettings(nDims=self.ndim, nDerived=self.ndim)
+        else:
+            self._setup_dynamic_defaults()
+            pc_kwargs = self.kwargs.copy()
+            pc_kwargs.pop('use_polychord_defaults')
+            settings = PolyChordSettings(nDims=self.ndim, nDerived=self.ndim, **pc_kwargs)
+
         self._verify_kwargs_against_default_kwargs()
+        PyPolyChord.run_polychord(loglikelihood=self.log_likelihood_wrapper, nDims=self.ndim,
+                                  nDerived=self.ndim, settings=settings, prior=self.prior_transform)
 
-        out = pypolychord.run()
+        return None
 
-        self.result.sampler_output = out
-        self.result.samples = out['samples']
-        self.result.log_evidence = out['logZ']
-        self.result.log_evidence_err = out['logZerr']
-        self.result.outputfiles_basename = self.kwargs['outputfiles_basename']
-        return self.result
+    def _setup_dynamic_defaults(self):
+        if not self.kwargs['grade_dims']:
+            self.kwargs['grade_dims'] = [self.ndim]
+        if not self.kwargs['grade_frac']:
+            self.kwargs['grade_frac'] = [1.0] * len(self.kwargs['grade_dims'])
+        if not self.kwargs['nlive']:
+            self.kwargs['nlive'] = self.ndim * 25
+        if not self.kwargs['num_repeats']:
+            self.kwargs['num_repeats'] = self.ndim * 25
+
+    def _verify_kwargs_against_default_kwargs(self):
+        """
+        Check if the kwargs are contained in the list of available arguments
+        of the external sampler.
+        """
+        args = self.default_kwargs
+
+        bad_keys = []
+        for user_input in self.kwargs.keys():
+            if user_input not in args:
+                logger.warning(
+                    "Supplied argument '{}' not an argument of '{}', removing."
+                    .format(user_input, self.__class__.__name__))
+                bad_keys.append(user_input)
+        for key in bad_keys:
+            self.kwargs.pop(key)
+
+    def log_likelihood_wrapper(self, theta):
+        return self.log_likelihood(theta), theta

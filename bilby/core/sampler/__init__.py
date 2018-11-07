@@ -12,18 +12,18 @@ from .dynesty import Dynesty
 from .emcee import Emcee
 from .nestle import Nestle
 from .ptemcee import Ptemcee
-from .polychord import BBPolychord
+from .polychord import Polychord
 from .pymc3 import Pymc3
 from .pymultinest import Pymultinest
 
-implemented_samplers = {
+IMPLEMENTED_SAMPLERS = {
     'cpnest': Cpnest, 'dynesty': Dynesty, 'emcee': Emcee, 'nestle': Nestle,
-    'ptemcee': Ptemcee, 'pymc3': Pymc3, 'pymultinest': Pymultinest}
+    'polychord': Polychord, 'ptemcee': Ptemcee, 'pymc3': Pymc3, 'pymultinest': Pymultinest}
 
 if command_line_args.sampler_help:
     sampler = command_line_args.sampler_help
-    if sampler in implemented_samplers:
-        sampler_class = implemented_samplers[sampler]
+    if sampler in IMPLEMENTED_SAMPLERS:
+        sampler_class = IMPLEMENTED_SAMPLERS[sampler]
         print('Help for sampler "{}":'.format(sampler))
         print(sampler_class.__doc__)
     else:
@@ -32,7 +32,7 @@ if command_line_args.sampler_help:
                   'the name of the sampler')
         else:
             print('Requested sampler {} not implemented'.format(sampler))
-        print('Available samplers = {}'.format(implemented_samplers))
+        print('Available samplers = {}'.format(IMPLEMENTED_SAMPLERS))
 
     sys.exit()
 
@@ -96,7 +96,7 @@ def run_sampler(likelihood, priors=None, label='label', outdir='outdir',
     if command_line_args.clean:
         kwargs['resume'] = False
 
-    from . import implemented_samplers
+    from . import IMPLEMENTED_SAMPLERS
 
     if priors is None:
         priors = dict()
@@ -113,14 +113,14 @@ def run_sampler(likelihood, priors=None, label='label', outdir='outdir',
     if isinstance(sampler, Sampler):
         pass
     elif isinstance(sampler, str):
-        if sampler.lower() in implemented_samplers:
-            sampler_class = implemented_samplers[sampler.lower()]
+        if sampler.lower() in IMPLEMENTED_SAMPLERS:
+            sampler_class = IMPLEMENTED_SAMPLERS[sampler.lower()]
             sampler = sampler_class(
                 likelihood, priors=priors, outdir=outdir, label=label,
                 injection_parameters=injection_parameters, meta_data=meta_data,
                 use_ratio=use_ratio, plot=plot, **kwargs)
         else:
-            print(implemented_samplers)
+            print(IMPLEMENTED_SAMPLERS)
             raise ValueError(
                 "Sampler {} not yet implemented".format(sampler))
     elif inspect.isclass(sampler):
@@ -132,7 +132,7 @@ def run_sampler(likelihood, priors=None, label='label', outdir='outdir',
     else:
         raise ValueError(
             "Provided sampler should be a Sampler object or name of a known "
-            "sampler: {}.".format(', '.join(implemented_samplers.keys())))
+            "sampler: {}.".format(', '.join(IMPLEMENTED_SAMPLERS.keys())))
 
     if sampler.cached_result:
         logger.warning("Using cached result")

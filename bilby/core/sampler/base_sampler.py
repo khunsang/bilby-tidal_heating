@@ -141,7 +141,10 @@ class Sampler(object):
         pass
 
     def _verify_external_sampler(self):
-        external_sampler_name = self.__class__.__name__.lower()
+        if self.__class__.__name__ != 'Polychord':
+            external_sampler_name = self.__class__.__name__.lower()
+        else:
+            external_sampler_name = 'PyPolyChord'
         try:
             self.external_sampler = __import__(external_sampler_name)
         except ImportError:
