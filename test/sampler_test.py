@@ -253,7 +253,7 @@ class TestPolyChord(unittest.TestCase):
         self.likelihood = MagicMock()
         self.priors = dict(a=bilby.prior.Uniform(0, 1))
         self.sampler = bilby.core.sampler.Polychord(self.likelihood, self.priors,
-                                                    outdir='outdir', label='label',
+                                                    outdir='outdir', label='polychord',
                                                     use_ratio=False, plot=False,
                                                     skip_import_verification=True)
 
@@ -269,8 +269,8 @@ class TestPolyChord(unittest.TestCase):
                         equals=True, cluster_posteriors=True, write_resume=True,
                         write_paramnames=False, read_resume=True, write_stats=True,
                         write_live=True, write_dead=True, write_prior=True,
-                        compression_factor=np.exp(-1), base_dir='polychord_chains',
-                        file_root='test', seed=-1, grade_dims=list([self.sampler.ndim]),
+                        compression_factor=np.exp(-1), base_dir='outdir',
+                        file_root='polychord', seed=-1, grade_dims=list([self.sampler.ndim]),
                         grade_frac=list([1.0]*len([self.sampler.ndim])), nlives={})
         self.assertDictEqual(expected, self.sampler.kwargs)
 
@@ -281,8 +281,8 @@ class TestPolyChord(unittest.TestCase):
                         equals=True, cluster_posteriors=True, write_resume=True,
                         write_paramnames=False, read_resume=True, write_stats=True,
                         write_live=True, write_dead=True, write_prior=True,
-                        compression_factor=np.exp(-1), base_dir='polychord_chains',
-                        file_root='test', seed=-1, grade_dims=None, grade_frac=None, nlives={})
+                        compression_factor=np.exp(-1), base_dir='outdir',
+                        file_root='polychord', seed=-1, grade_dims=None, grade_frac=None, nlives={})
         for equiv in bilby.core.sampler.base_sampler.NestedSampler.npoints_equiv_kwargs:
             new_kwargs = self.sampler.kwargs.copy()
             del new_kwargs['nlive']

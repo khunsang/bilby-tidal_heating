@@ -39,16 +39,19 @@ class Polychord(NestedSampler):
                           equals=True, cluster_posteriors=True, write_resume=True,
                           write_paramnames=False, read_resume=True, write_stats=True,
                           write_live=True, write_dead=True, write_prior=True,
-                          compression_factor=np.exp(-1), base_dir='polychord_chains',
-                          file_root='test', seed=-1, grade_dims=None, grade_frac=None, nlives={})
+                          compression_factor=np.exp(-1), base_dir='outdir',
+                          file_root='polychord', seed=-1, grade_dims=None, grade_frac=None, nlives={})
 
     def run_sampler(self):
 
         if self.kwargs['use_polychord_defaults']:
-            settings = PolyChordSettings(nDims=self.ndim, nDerived=self.ndim)
+            settings = PolyChordSettings(nDims=self.ndim, nDerived=self.ndim, base_dir=self.outdir,
+                                         file_root=self.label)
         else:
             self._setup_dynamic_defaults()
             pc_kwargs = self.kwargs.copy()
+            pc_kwargs['base_dir'] = self.outdir
+            pc_kwargs['file_root'] = self.label
             pc_kwargs.pop('use_polychord_defaults')
             settings = PolyChordSettings(nDims=self.ndim, nDerived=self.ndim, **pc_kwargs)
         self._verify_kwargs_against_default_kwargs()
