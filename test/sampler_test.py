@@ -252,10 +252,10 @@ class TestPolyChord(unittest.TestCase):
     def setUp(self):
         self.likelihood = MagicMock()
         self.priors = dict(a=bilby.prior.Uniform(0, 1))
-        self.sampler = bilby.core.sampler.Polychord(self.likelihood, self.priors,
-                                                    outdir='outdir', label='polychord',
-                                                    use_ratio=False, plot=False,
-                                                    skip_import_verification=True)
+        self.sampler = bilby.core.sampler.PyPolyChord(self.likelihood, self.priors,
+                                                      outdir='outdir', label='polychord',
+                                                      use_ratio=False, plot=False,
+                                                      skip_import_verification=True)
 
     def tearDown(self):
         del self.likelihood

@@ -12,13 +12,13 @@ from .dynesty import Dynesty
 from .emcee import Emcee
 from .nestle import Nestle
 from .ptemcee import Ptemcee
-from .polychord import Polychord
+from .polychord import PyPolyChord
 from .pymc3 import Pymc3
 from .pymultinest import Pymultinest
 
 IMPLEMENTED_SAMPLERS = {
     'cpnest': Cpnest, 'dynesty': Dynesty, 'emcee': Emcee, 'nestle': Nestle,
-    'polychord': Polychord, 'ptemcee': Ptemcee, 'pymc3': Pymc3, 'pymultinest': Pymultinest}
+    'pypolychord': PyPolyChord, 'ptemcee': Ptemcee, 'pymc3': Pymc3, 'pymultinest': Pymultinest}
 
 if command_line_args.sampler_help:
     sampler = command_line_args.sampler_help

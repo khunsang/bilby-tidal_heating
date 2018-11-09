@@ -17,7 +17,7 @@ except ImportError:
                  "be able to use the PolyChord Sampler")
 
 
-class Polychord(NestedSampler):
+class PyPolyChord(NestedSampler):
 
     """
     Bilby wrapper of PyPolyChord
@@ -84,7 +84,7 @@ class Polychord(NestedSampler):
 
     def log_likelihood(self, theta):
         """ Overrides the log_likelihood so that PolyChord understands it """
-        return super(Polychord, self).log_likelihood(theta), theta
+        return super(PyPolyChord, self).log_likelihood(theta), theta
 
     def _read_out_stats_file(self):
         statsfile = self.outdir + '/' + self.label + '.stats'
