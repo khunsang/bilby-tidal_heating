@@ -59,7 +59,11 @@ class Polychord(NestedSampler):
         PyPolyChord.run_polychord(loglikelihood=self.log_likelihood, nDims=self.ndim,
                                   nDerived=self.ndim, settings=settings, prior=self.prior_transform)
 
-        return Result()
+        # out = data_processing.process_polychord_run(file_root, base_dir)
+        # self.result.sampler_output = out
+        self.result.log_evidence, self.result.log_evidence_err = self._read_out_stats_file()
+        self.result.samples = self._read_sample_file()
+        return self.result
 
     def _setup_dynamic_defaults(self):
         """ Sets up some interdependent default argument if none are given by the user """
@@ -81,3 +85,21 @@ class Polychord(NestedSampler):
     def log_likelihood(self, theta):
         """ Overrides the log_likelihood so that PolyChord understands it """
         return super(Polychord, self).log_likelihood(theta), theta
+
+    def _read_out_stats_file(self):
+        statsfile = self.outdir + '/' + self.label + '.stats'
+        with open(statsfile) as f:
+            for line in f:
+                if line.startswith('log(Z)'):
+                    line.replace('log(Z)', '')
+                    line.replace(' ', '')
+                    z = line.split('+/-')
+                    log_z = z[0]
+                    log_z_err = z[1]
+                    return log_z, log_z_err
+
+    def _read_sample_file(self):
+        sample_file = self.outdir + '/' + self.label + '_equal_weights.txt'
+        samples = np.loadtxt(sample_file)
+        return samples[:, -self.ndim:]  # extract last ndim columns
+
