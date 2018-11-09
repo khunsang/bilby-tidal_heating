@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "92b6eb14906ff37aa431c6310ff181dedc9eef89ab00af9eb6421fb0b243d1b4"
+            "sha256": "2bba5ec767b1ed0d419e4c0a1ea1487a2d9808c006ff645f615af348d679e373"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -516,6 +516,10 @@
                 "sha256:f353aab21fd474459d97b709e527b5571314ee5f067441dc9f88e33eecd96592"
             ],
             "version": "==2.3.0"
+        },
+        "pypolychord": {
+            "editable": true,
+            "path": "./../PolyChord"
         },
         "pytest": {
             "hashes": [
