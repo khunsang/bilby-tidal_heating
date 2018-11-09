@@ -1,10 +1,13 @@
 from __future__ import absolute_import
 
+import nestcheck
+from nestcheck import data_processing, estimators
 import numpy as np
 
 from .base_sampler import NestedSampler
 from ..utils import logger
 from ..result import Result
+
 
 try:
     import PyPolyChord
@@ -40,8 +43,6 @@ class Polychord(NestedSampler):
                           file_root='test', seed=-1, grade_dims=None, grade_frac=None, nlives={})
 
     def run_sampler(self):
-        import PyPolyChord
-        from PyPolyChord.settings import PolyChordSettings
 
         if self.kwargs['use_polychord_defaults']:
             settings = PolyChordSettings(nDims=self.ndim, nDerived=self.ndim)
