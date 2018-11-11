@@ -10,7 +10,7 @@ from ..result import Result
 
 
 try:
-    import PyPolyChord
+    import PyPolyChord as pypolychord
     from PyPolyChord.settings import PolyChordSettings
 except ImportError:
     logger.debug("PyPolyChord is not installed on this system, you will not"
@@ -56,7 +56,7 @@ class PyPolyChord(NestedSampler):
             settings = PolyChordSettings(nDims=self.ndim, nDerived=self.ndim, **pc_kwargs)
         self._verify_kwargs_against_default_kwargs()
 
-        PyPolyChord.run_polychord(loglikelihood=self.log_likelihood, nDims=self.ndim,
+        pypolychord.run_polychord(loglikelihood=self.log_likelihood, nDims=self.ndim,
                                   nDerived=self.ndim, settings=settings, prior=self.prior_transform)
 
         # out = data_processing.process_polychord_run(file_root, base_dir)
@@ -91,11 +91,13 @@ class PyPolyChord(NestedSampler):
         with open(statsfile) as f:
             for line in f:
                 if line.startswith('log(Z)'):
-                    line.replace('log(Z)', '')
-                    line.replace(' ', '')
+                    line = line.replace('log(Z)', '')
+                    line = line.replace('=', '')
+                    line = line.replace(' ', '')
+                    print(line)
                     z = line.split('+/-')
-                    log_z = z[0]
-                    log_z_err = z[1]
+                    log_z = float(z[0])
+                    log_z_err = float(z[1])
                     return log_z, log_z_err
 
     def _read_sample_file(self):
