@@ -447,7 +447,7 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
 
             optimal_snr_squared += \
                 np.vdot(np.abs(h_plus_quadratic + h_cross_quadratic)**2,
-                        self.weights[ifo.name+'_quadratic'])
+                        self.weights[ifo.name + '_quadratic'])
 
         log_l = matched_filter_snr_squared - optimal_snr_squared / 2
 
