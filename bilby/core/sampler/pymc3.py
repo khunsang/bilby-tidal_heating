@@ -14,11 +14,11 @@ class Pymc3(MCMCSampler):
 
     All keyword arguments (i.e., the kwargs) passed to `run_sampler` will be
     propapated to `pymc3.sample` where appropriate, see documentation for that
-    class for further help. Under Keyword Arguments, we list commonly used
+    class for further help. Under Other Parameters, we list commonly used
     kwargs and the bilby, or where appropriate, PyMC3 defaults.
 
-    Keyword Arguments
-    -----------------
+    Other Parameters
+    ----------------
     draws: int, (1000)
         The number of sample draws from the posterior per chain.
     chains: int, (2)
@@ -428,7 +428,8 @@ class Pymc3(MCMCSampler):
                     curmethod = self.step_method[key].lower()
                     self.kwargs['step'].append(pymc3.__dict__[step_methods[curmethod]]([self.pymc3_priors[key]]))
         else:
-            self.kwargs['step'] = None if self.step_method is None else pymc3.__dict__[step_methods[self.step_method]]()
+            with self.pymc3_model:
+                self.kwargs['step'] = None if self.step_method is None else pymc3.__dict__[step_methods[self.step_method]]()
 
         # if a custom log_likelihood function requires a `sampler` argument
         # then use that log_likelihood function, with the assumption that it
