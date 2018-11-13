@@ -459,11 +459,13 @@ class TestROQLikelihood(unittest.TestCase):
         self.duration = 4
         self.sampling_frequency = 2048
 
-        basis_matrix_linear = np.load("12D_IMRPhenomP/B_linear.npy").T
-        freq_nodes_linear = np.load("12D_IMRPhenomP/fnodes_linear.npy")
+        roq_dir = '/root/roq_basis'
 
-        basic_matrix_quadratic = np.load("12D_IMRPhenomP/B_quadratic.npy").T
-        freq_nodes_quadratic = np.load("12D_IMRPhenomP/fnodes_quadratic.npy")
+        basis_matrix_linear = np.load("{}/B_linear.npy".format(roq_dir)).T
+        freq_nodes_linear = np.load("{}/fnodes_linear.npy".format(roq_dir))
+
+        basic_matrix_quadratic = np.load("{}/B_quadratic.npy".format(roq_dir)).T
+        freq_nodes_quadratic = np.load("{}/fnodes_quadratic.npy".format(roq_dir))
 
         self.test_parameters = dict(
             mass_1=36.0, mass_2=36.0, a_1=0.0, a_2=0.0, tilt_1=0.0,
