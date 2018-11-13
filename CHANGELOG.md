@@ -14,6 +14,7 @@ Changes currently on master, but not under a tag.
 - Added method to result to get injection recovery credible levels
 - Added function to generate a pp-plot from many results to core/result.py
 - Fixed a bug which caused `Interferometer.detector_tensor` not to update when `latitude`, `longitude`, `xarm_azimuth`, `yarm_azimuth`, `xarm_tilt`, `yarm_tilt` were updated.
+- Added implementation of the ROQ likelihood. The basis needs to be specified by the user.
 
 ### Changes
 - Switch the ordering the key-word arguments in `result.read_in_result` to put
