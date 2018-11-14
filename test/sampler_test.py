@@ -5,6 +5,7 @@ import unittest
 from mock import MagicMock
 import numpy as np
 import os
+import shutil
 import copy
 
 
@@ -449,6 +450,7 @@ class TestRunningSamplers(unittest.TestCase):
         del self.likelihood
         del self.priors
         bilby.core.utils.command_line_args.test = False
+        shutil.rmtree('outdir')
 
     def test_run_cpnest(self):
         _ = bilby.run_sampler(
