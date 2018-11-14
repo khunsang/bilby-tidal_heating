@@ -445,6 +445,7 @@ class TestRunningSamplers(unittest.TestCase):
 
         self.priors = dict(
             m=bilby.core.prior.Uniform(0, 5), c=bilby.core.prior.Uniform(-2, 2))
+        bilby.core.utils.check_directory_exists_and_if_not_mkdir('outdir')
 
     def tearDown(self):
         del self.likelihood
