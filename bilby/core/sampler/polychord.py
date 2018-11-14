@@ -1,12 +1,9 @@
 from __future__ import absolute_import
 
-import nestcheck
-from nestcheck import data_processing, estimators
 import numpy as np
 
 from .base_sampler import NestedSampler
 from ..utils import logger
-from ..result import Result
 
 
 try:
@@ -104,4 +101,3 @@ class PyPolyChord(NestedSampler):
         sample_file = self.outdir + '/' + self.label + '_equal_weights.txt'
         samples = np.loadtxt(sample_file)
         return samples[:, -self.ndim:]  # extract last ndim columns
-
