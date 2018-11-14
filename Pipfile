@@ -16,6 +16,7 @@ astropy = "<3"
 gwpy = "*"
 theano = "*"
 lalsuite = "*"
+
 # cpnest = "*"
 dynesty = "*"
 emcee = "*"
@@ -23,8 +24,6 @@ nestle = "*"
 ptemcee = "*"
 pymc3 = "*"
 pymultinest = "*"
-dypolychord = "*"
-pypolychord = {path = "./../PolyChord", editable = true}
 
 [requires]
 
