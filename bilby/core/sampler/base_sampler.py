@@ -143,10 +143,10 @@ class Sampler(object):
         external_sampler_name = self.__class__.__name__
         try:
             self.external_sampler = __import__(external_sampler_name.lower())
-        except (ImportError, ModuleNotFoundError, TabError):
+        except (ImportError, TabError):
             try:
                 self.external_sampler = __import__(external_sampler_name)
-            except (ImportError, ModuleNotFoundError):
+            except ImportError:
                 raise SamplerNotInstalledError(
                     "Sampler {} is not installed on this system"
                     .format(external_sampler_name))
