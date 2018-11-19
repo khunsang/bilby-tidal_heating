@@ -48,8 +48,6 @@ class PyPolyChord(NestedSampler):
         pypolychord.run_polychord(loglikelihood=self.log_likelihood, nDims=self.ndim,
                                   nDerived=self.ndim, settings=settings, prior=self.prior_transform)
 
-        # out = data_processing.process_polychord_run(file_root, base_dir)
-        # self.result.sampler_output = out
         self.result.log_evidence, self.result.log_evidence_err = self._read_out_stats_file()
         self.result.samples = self._read_sample_file()
         return self.result
