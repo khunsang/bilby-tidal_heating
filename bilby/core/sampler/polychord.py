@@ -3,15 +3,6 @@ from __future__ import absolute_import
 import numpy as np
 
 from .base_sampler import NestedSampler
-from ..utils import logger
-
-
-try:
-    import PyPolyChord as pypolychord
-    from PyPolyChord.settings import PolyChordSettings
-except ImportError:
-    logger.debug("PyPolyChord is not installed on this system, you will not"
-                 "be able to use the PolyChord Sampler")
 
 
 class PyPolyChord(NestedSampler):
@@ -40,7 +31,8 @@ class PyPolyChord(NestedSampler):
                           file_root='polychord', seed=-1, grade_dims=None, grade_frac=None, nlives={})
 
     def run_sampler(self):
-
+        import PyPolyChord as pypolychord
+        from PyPolyChord.settings import PolyChordSettings
         if self.kwargs['use_polychord_defaults']:
             settings = PolyChordSettings(nDims=self.ndim, nDerived=self.ndim, base_dir=self.outdir,
                                          file_root=self.label)
