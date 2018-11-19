@@ -140,15 +140,16 @@ class Sampler(object):
         pass
 
     def _verify_external_sampler(self):
-        if self.__class__.__name__ != 'PyPolyChord':
-            external_sampler_name = self.__class__.__name__.lower()
-        else:
-            external_sampler_name = 'PyPolyChord'
+        external_sampler_name = self.__class__.__name__
         try:
-            self.external_sampler = __import__(external_sampler_name)
-        except ImportError:
-            raise ImportError(
-                "Sampler {} not installed on this system".format(external_sampler_name))
+            self.external_sampler = __import__(external_sampler_name.lower())
+        except (ImportError, ModuleNotFoundError, TabError):
+            try:
+                self.external_sampler = __import__(external_sampler_name)
+            except (ImportError, ModuleNotFoundError):
+                raise SamplerNotInstalledError(
+                    "Sampler {} is not installed on this system"
+                    .format(external_sampler_name))
 
     def _verify_kwargs_against_default_kwargs(self):
         """
@@ -476,3 +477,15 @@ class MCMCSampler(Sampler):
         except emcee.autocorr.AutocorrError as e:
             self.result.max_autocorrelation_time = None
             logger.info("Unable to calculate autocorr time: {}".format(e))
+
+
+class Error(Exception):
+    """ Base class for all exceptions raised by this module """
+
+
+class SamplerError(Error):
+    """ Base class for Error related to samplers in this module """
+
+
+class SamplerNotInstalledError(SamplerError):
+    """ Base class for Error raised by not installed samplers """
