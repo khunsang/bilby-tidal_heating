@@ -1,7 +1,9 @@
 from __future__ import absolute_import
 import datetime
 import numpy as np
+
 from pandas import DataFrame
+
 from ..utils import logger, command_line_args
 from ..prior import Prior, PriorDict
 from ..result import Result, read_in_result
@@ -142,14 +144,10 @@ class Sampler(object):
     def _verify_external_sampler(self):
         external_sampler_name = self.__class__.__name__
         try:
-            self.external_sampler = __import__(external_sampler_name.lower())
-        except (ImportError, TabError):
-            try:
-                self.external_sampler = __import__(external_sampler_name)
-            except ImportError:
-                raise SamplerNotInstalledError(
-                    "Sampler {} is not installed on this system"
-                    .format(external_sampler_name))
+            self.external_sampler = __import__(external_sampler_name)
+        except (ImportError, SystemExit, ModuleNotFoundError):
+            raise SamplerNotInstalledError(
+                "Sampler {} is not installed on this system".format(external_sampler_name))
 
     def _verify_kwargs_against_default_kwargs(self):
         """

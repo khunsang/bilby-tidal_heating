@@ -2,13 +2,15 @@ from __future__ import division
 
 import os
 from distutils.version import LooseVersion
+from collections import OrderedDict, namedtuple
+
 import numpy as np
 import deepdish
 import pandas as pd
 import corner
+import scipy.stats
 import matplotlib
 import matplotlib.pyplot as plt
-from collections import OrderedDict, namedtuple
 
 from . import utils
 from .utils import (logger, infer_parameters_from_function,
@@ -74,7 +76,7 @@ class Result(object):
                  log_bayes_factor=np.nan, log_likelihood_evaluations=None,
                  sampling_time=None, nburn=None, walkers=None,
                  max_autocorrelation_time=None, parameter_labels=None,
-                 parameter_labels_with_unit=None):
+                 parameter_labels_with_unit=None, version=None):
         """ A class to store the results of the sampling run
 
         Parameters
@@ -110,6 +112,9 @@ class Result(object):
             The estimated maximum autocorrelation time for MCMC samplers
         parameter_labels, parameter_labels_with_unit: list
             Lists of the latex-formatted parameter labels
+        version: str,
+            Version information for software used to generate the result. Note,
+            this information is generated when the result object is initialized
 
         Note:
             All sampling output parameters, e.g. the samples themselves are
@@ -139,6 +144,7 @@ class Result(object):
         self.log_bayes_factor = log_bayes_factor
         self.log_likelihood_evaluations = log_likelihood_evaluations
         self.sampling_time = sampling_time
+        self.version = version
         self.max_autocorrelation_time = max_autocorrelation_time
 
     def __str__(self):
@@ -245,7 +251,19 @@ class Result(object):
     def posterior(self, posterior):
         self._posterior = posterior
 
+    @property
+    def version(self):
+        return self._version
+
+    @version.setter
+    def version(self, version):
+        if version is None:
+            self._version = 'bilby={}'.format(utils.get_version_information())
+        else:
+            self._version = version
+
     def _get_save_data_dictionary(self):
+        # This list defines all the parameters saved in the result object
         save_attrs = [
             'label', 'outdir', 'sampler', 'log_evidence', 'log_evidence_err',
             'log_noise_evidence', 'log_bayes_factor', 'priors', 'posterior',
@@ -253,7 +271,7 @@ class Result(object):
             'fixed_parameter_keys', 'sampling_time', 'sampler_kwargs',
             'log_likelihood_evaluations', 'samples', 'nested_samples',
             'walkers', 'nburn', 'parameter_labels',
-            'parameter_labels_with_unit']
+            'parameter_labels_with_unit', 'version']
         dictionary = OrderedDict()
         for attr in save_attrs:
             try:
@@ -910,6 +928,44 @@ class Result(object):
                 elif typeA in [np.ndarray]:
                     return np.all(A == B)
         return False
+
+    @property
+    def kde(self):
+        """ Kernel density estimate built from the stored posterior
+
+        Uses `scipy.stats.gaussian_kde` to generate the kernel density
+        """
+        try:
+            return self._kde
+        except AttributeError:
+            self._kde = scipy.stats.gaussian_kde(
+                self.posterior[self.search_parameter_keys].values.T)
+            return self._kde
+
+    def posterior_probability(self, sample):
+        """ Calculate the posterior probabily for a new sample
+
+        This queries a Kernel Density Estimate of the posterior to calculate
+        the posterior probability density for the new sample.
+
+        Parameters
+        ----------
+        sample: dict, or list of dictionaries
+            A dictionary containing all the keys from
+            self.search_parameter_keys and corresponding values at which to
+            calculate the posterior probability
+
+        Returns
+        -------
+        p: array-like,
+            The posterior probability of the sample
+
+        """
+        if isinstance(sample, dict):
+            sample = [sample]
+        ordered_sample = [[s[key] for key in self.search_parameter_keys]
+                          for s in sample]
+        return self.kde(ordered_sample)
 
 
 def plot_multiple(results, filename=None, labels=None, colours=None,
