@@ -5,6 +5,7 @@ import unittest
 from mock import MagicMock
 import numpy as np
 import os
+import sys
 import shutil
 import copy
 
@@ -474,9 +475,10 @@ class TestRunningSamplers(unittest.TestCase):
             nlive=100, save=False)
 
     def test_run_pypolychord(self):
-        _ = bilby.run_sampler(
-            likelihood=self.likelihood, priors=self.priors,
-            sampler='pypolychord', nlive=100, save=False)
+        if not sys.version_info < 3:
+            _ = bilby.run_sampler(
+                likelihood=self.likelihood, priors=self.priors,
+                sampler='pypolychord', nlive=100, save=False)
 
     def test_run_ptemcee(self):
         _ = bilby.run_sampler(
