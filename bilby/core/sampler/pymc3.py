@@ -36,11 +36,13 @@ class Pymc3(MCMCSampler):
         chains.
     step: str, dict
         Provide a step method name, or dictionary of step method names keyed to
-        particular variable names (these are case insensitive). If no method is
-        provided for any particular variable then PyMC3 will automatically
-        decide upon a default, with the first option being the NUTS sampler.
-        The currently allowed methods are 'NUTS', 'HamiltonianMC',
-        'Metropolis', 'BinaryMetropolis', 'BinaryGibbsMetropolis', 'Slice', and
+        particular variable names (these are case insensitive). If passing a
+        dictionary of methods, the values keyed on particular variables can be
+        lists of methods to form compound steps. If no method is provided for
+        any particular variable then PyMC3 will automatically decide upon a
+        default, with the first option being the NUTS sampler. The currently
+        allowed methods are 'NUTS', 'HamiltonianMC', 'Metropolis',
+        'BinaryMetropolis', 'BinaryGibbsMetropolis', 'Slice', and
         'CategoricalGibbsMetropolis'. Note: you cannot provide a PyMC3 step
         method function itself here as it is outside of the model context
         manager.
@@ -393,13 +395,27 @@ class Pymc3(MCMCSampler):
                     if key not in self.__search_parameter_keys:
                         raise ValueError("Setting a step method for an unknown parameter '{}'".format(key))
                     else:
-                        if self.step_method[key].lower() not in step_methods:
-                            raise ValueError("Using invalid step method '{}'".format(self.step_method[key]))
-            else:
-                self.step_method = self.step_method.lower()
+                        # check if using a compound step (a list of step
+                        # methods for a particular parameter)
+                        if isinstance(self.step_method[key], list):
+                            sms = self.step_method[key]
+                        else:
+                            sms = [self.step_method[key]]
 
-                if self.step_method not in step_methods:
-                    raise ValueError("Using invalid step method '{}'".format(self.step_method))
+                        for sm in sms:
+                            if sm.lower() not in step_methods:
+                                raise ValueError("Using invalid step method '{}'".format(self.step_method[key]))
+            else:
+                # check if using a compound step (a list of step
+                # methods for a particular parameter)
+                if isinstance(self.step_method, list):
+                    sms = self.step_method
+                else:
+                    sms = [self.step_method]
+
+                for i in range(len(sms)):
+                    if sms[i].lower() not in step_methods:
+                        raise ValueError("Using invalid step method '{}'".format(sms[i]))
         else:
             self.step_method = None
 
@@ -409,17 +425,73 @@ class Pymc3(MCMCSampler):
         # set the prior
         self.set_prior()
 
+        # get the step method keyword arguments
+        step_kwargs = self.kwargs.pop('step_kwargs')
+        nuts_kwargs = self.kwargs.pop('nuts_kwargs')
+
         # set the step method
         if isinstance(self.step_method, (dict, OrderedDict)):
             # create list of step methods (any not given will default to NUTS)
             self.kwargs['step'] = []
             with self.pymc3_model:
                 for key in self.step_method:
-                    curmethod = self.step_method[key].lower()
-                    self.kwargs['step'].append(pymc3.__dict__[step_methods[curmethod]]([self.pymc3_priors[key]]))
+                    # check for a compound step list
+                    if isinstance(self.step_method[key], list):
+                        for sms in self.step_method[key]:
+                            curmethod = sms.lower()
+                            args = {}
+                            if curmethod == 'nuts':
+                                if nuts_kwargs is not None:
+                                    args = nuts_kwargs
+                                else:
+                                    args = step_kwargs.get('nuts', {})
+                            else:
+                                args = step_kwargs.get(curmethod, {})
+                            self.kwargs['step'].append(pymc3.__dict__[step_methods[curmethod]](vars=[self.pymc3_priors[key]], **args))
+                    else:
+                        curmethod = self.step_method[key].lower()
+                        args = {}
+                        if curmethod == 'nuts':
+                            if nuts_kwargs is not None:
+                                args = nuts_kwargs
+                            else:
+                                args = step_kwargs.get('nuts', {})
+                        else:
+                            args = step_kwargs.get(curmethod, {})
+                        self.kwargs['step'].append(pymc3.__dict__[step_methods[curmethod]](vars=[self.pymc3_priors[key]], **args))
         else:
             with self.pymc3_model:
-                self.kwargs['step'] = None if self.step_method is None else pymc3.__dict__[step_methods[self.step_method]]()
+                # check for a compound step list
+                if isinstance(self.step_method, list):
+                    compound = []
+                    for sms in self.step_method:
+                        curmethod = sms.lower()
+                        args = {}
+                        if curmethod == 'nuts':
+                            if nuts_kwargs is not None:
+                                args = nuts_kwargs
+                            else:
+                                args = step_kwargs.get('nuts', {})
+                        else:
+                            args = step_kwargs.get(curmethod, {})
+                        compound.append(pymc3.__dict__[step_methods[curmethod]](**args))
+                else:
+                    self.kwargs['step'] = None
+                    if self.step_method is not None:
+                        curmethod = self.step_method.lower()
+                        args = {}
+                        if curmethod == 'nuts':
+                            if nuts_kwargs is not None:
+                                args = nuts_kwargs
+                            else:
+                                args = step_kwargs.get('nuts', {})
+                        else:
+                            args = step_kwargs.get(curmethod, {})
+                        self.kwargs['step'] = pymc3.__dict__[step_methods[curmethod]](**args)
+                    else:
+                        # re-add step_kwargs and nuts_kwargs if no step methods are set
+                        self.kwargs['nuts_kwargs'] = nuts_kwargs
+                        self.kwargs['step_kwargs'] = step_kwargs
 
         # if a custom log_likelihood function requires a `sampler` argument
         # then use that log_likelihood function, with the assumption that it
