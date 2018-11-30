@@ -14,7 +14,7 @@ import bilby
 
 # Set the duration and sampling frequency of the data segment that we're
 # going to inject the signal into
-duration = np.pi
+duration = 4.
 sampling_frequency = 2048.
 
 # Specify the output directory and the name of the simulation.
