@@ -10,25 +10,27 @@ from bilby.core import utils
 class TestFFT(unittest.TestCase):
 
     def setUp(self):
-        pass
+        self.sampling_frequency = 10
 
     def tearDown(self):
-        pass
+        del self.sampling_frequency
 
-    def test_nfft_frequencies(self):
-        f = 2.1
-        sampling_frequency = 10
-        times = np.arange(0, 100, 1/sampling_frequency)
-        tds = np.sin(2*np.pi*times * f + 0.4)
-        fds, freqs = bilby.core.utils.nfft(tds, sampling_frequency)
-        self.assertTrue(np.abs((f-freqs[np.argmax(np.abs(fds))])/f < 1e-15))
+    def test_nfft_sine_function(self):
+        injected_frequency = 2.7324
+        duration = 100
+        times = utils.create_time_series(self.sampling_frequency, duration)
+
+        time_domain_strain = np.sin(2 * np.pi * times * injected_frequency + 0.4)
+
+        frequency_domain_strain, frequencies = bilby.core.utils.nfft(time_domain_strain, self.sampling_frequency)
+        frequency_at_peak = frequencies[np.argmax(np.abs(frequency_domain_strain))]
+        self.assertAlmostEqual(injected_frequency, frequency_at_peak, places=2)
 
     def test_nfft_infft(self):
-        sampling_frequency = 10
-        tds = np.random.normal(0, 1, 10)
-        fds, _ = bilby.core.utils.nfft(tds, sampling_frequency)
-        tds2 = bilby.core.utils.infft(fds, sampling_frequency)
-        self.assertTrue(np.all(np.abs((tds - tds2) / tds) < 1e-12))
+        time_domain_strain = np.random.normal(0, 1, 10)
+        frequency_domain_strain, _ = bilby.core.utils.nfft(time_domain_strain, self.sampling_frequency)
+        new_time_domain_strain = bilby.core.utils.infft(frequency_domain_strain, self.sampling_frequency)
+        self.assertTrue(np.allclose(time_domain_strain, new_time_domain_strain))
 
 
 class TestInferParameters(unittest.TestCase):
