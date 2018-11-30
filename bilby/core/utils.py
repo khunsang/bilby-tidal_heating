@@ -288,9 +288,9 @@ def nfft(time_domain_strain, sampling_frequency):
     # add one zero padding if time series doesn't have even number of samples
     if np.mod(len(time_domain_strain), 2) == 1:
         time_domain_strain = np.append(time_domain_strain, 0)
-    LL = len(time_domain_strain)
+
     # frequency range
-    frequency_array = sampling_frequency / 2 * np.linspace(0, 1, int(LL / 2 + 1))
+    frequency_array = np.linspace(0, sampling_frequency / 2, int(len(time_domain_strain) / 2 + 1))
 
     # calculate FFT
     # rfft computes the fft for real inputs
