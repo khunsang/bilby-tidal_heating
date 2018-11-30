@@ -85,23 +85,22 @@ class TestTimeAndFrequencyArrays(unittest.TestCase):
         self.assertTrue(np.allclose(expected_time_array, time_array))
 
     def test_create_time_array(self):
-        pass
-        # expected_frequency_array = np.array([])
-        # frequency_array =
+        expected_frequency_array = np.array([0, 1, 2, 3, 4])
+        frequency_array = utils.create_frequency_series(sampling_frequency=10, duration=1)
+        self.assertTrue(np.allclose(expected_frequency_array, frequency_array))
 
     def test_get_sampling_frequency_from_time_array(self):
         new_sampling_freq, _ = utils.get_sampling_frequency_and_duration_from_time_array(
             self.time_array)
-
         self.assertEqual(self.sampling_frequency, new_sampling_freq)
 
-        pass
-
     def test_get_duration_from_time_array(self):
-        pass
+        _, new_duration = utils.get_sampling_frequency_and_duration_from_frequency_array(self.frequency_array)
+        self.assertEqual(self.duration, new_duration)
 
     def test_get_start_time_from_time_array(self):
-        pass
+        new_start_time = self.time_array[0]
+        self.assertEqual(self.start_time, new_start_time)
 
     def test_get_sampling_frequency_from_frequency_array(self):
         new_sampling_freq, new_duration = utils.get_sampling_frequency_and_duration_from_frequency_array(
