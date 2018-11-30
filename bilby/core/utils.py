@@ -75,7 +75,7 @@ def get_sampling_frequency(time_series):
     if np.ptp(np.diff(time_series)) > tol:
         raise ValueError("Your time series was not evenly sampled")
     else:
-        return 1. / (time_series[1] - time_series[0])
+        return np.round(1. / (time_series[1] - time_series[0]), decimals=8)
 
 
 def get_sampling_frequency_and_duration_from_time_array(time_array):
@@ -93,7 +93,7 @@ def get_sampling_frequency_and_duration_from_time_array(time_array):
     """
 
     sampling_frequency = get_sampling_frequency(time_array)
-    duration = time_array[-1] - time_array[0]
+    duration = np.round(time_array[-1] - time_array[0], decimals=8)
     return sampling_frequency, duration
 
 
@@ -116,9 +116,11 @@ def get_sampling_frequency_and_duration_from_frequency_array(frequency_array):
         raise ValueError("Your frequency series was not evenly sampled")
 
     number_of_frequencies = len(frequency_array)
-    delta_freq = frequency_array[1] - frequency_array[0]
-    duration = 1 / delta_freq
-    sampling_frequency = 2 * number_of_frequencies / duration
+    delta_freq = np.mean(np.diff(frequency_array))
+    duration = np.round(1 / delta_freq, decimals=8)
+
+    # number_of_frequencies - 1 because we always have 0 and max frequency in there
+    sampling_frequency = np.round(2 * (number_of_frequencies - 1) / duration, decimals=8)
     return sampling_frequency, duration
 
 
@@ -136,7 +138,9 @@ def create_time_series(sampling_frequency, duration, starting_time=0.):
     float: An equidistant time series given the parameters
 
     """
-    return np.arange(starting_time, starting_time + duration, 1. / sampling_frequency)
+    return np.linspace(start=starting_time,
+                       stop=duration+starting_time,
+                       num=int(duration*sampling_frequency)+1)
 
 
 def ra_dec_to_theta_phi(ra, dec, gmst):
@@ -207,16 +211,13 @@ def create_frequency_series(sampling_frequency, duration):
     number_of_samples = int(np.round(number_of_samples))
 
     # prepare for FFT
-    number_of_frequencies = (number_of_samples - 1) // 2
+    number_of_frequencies = np.floor((number_of_samples - 1) / 2)
     delta_freq = 1. / duration
 
-    frequencies = delta_freq * np.linspace(1, number_of_frequencies, number_of_frequencies)
-
-    if len(frequencies) % 2 == 1:
-        frequencies = np.concatenate(([0], frequencies, [sampling_frequency / 2.]))
-    else:
-        # no Nyquist frequency when N=odd
-        frequencies = np.concatenate(([0], frequencies))
+    frequencies = delta_freq * np.linspace(0, number_of_frequencies, number_of_frequencies + 1)
+    # frequency_array must be odd
+    if len(frequencies) % 2 == 0:
+        frequencies = np.concatenate((frequencies, [frequencies[-1] + delta_freq]))
 
     return frequencies
 
