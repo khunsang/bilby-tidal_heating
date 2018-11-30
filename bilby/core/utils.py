@@ -154,8 +154,8 @@ def create_time_series(sampling_frequency, duration, starting_time=0.):
 
     """
     return np.linspace(start=starting_time,
-                       stop=duration+starting_time,
-                       num=int(duration*sampling_frequency)+1)
+                       stop=duration + starting_time,
+                       num=int(duration * sampling_frequency) + 1)
 
 
 def create_frequency_series(sampling_frequency, duration):
