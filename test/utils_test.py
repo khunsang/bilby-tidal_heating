@@ -77,6 +77,7 @@ class TestTimeAndFrequencyArrays(unittest.TestCase):
         del self.sampling_frequency
         del self.duration
         del self.frequency_array
+        del self.time_array
 
     def test_create_frequency_array(self):
         pass
@@ -85,6 +86,11 @@ class TestTimeAndFrequencyArrays(unittest.TestCase):
         pass
 
     def test_get_sampling_frequency_from_time_array(self):
+        new_sampling_freq, _ = utils.get_sampling_frequency_and_duration_from_time_array(
+            self.time_array)
+
+        self.assertEqual(self.sampling_frequency, new_sampling_freq)
+
         pass
 
     def test_get_duration_from_time_array(self):
