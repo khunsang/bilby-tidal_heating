@@ -60,5 +60,41 @@ class TestInferParameters(unittest.TestCase):
         self.assertListEqual(expected, actual)
 
 
+class TestTimeAndFrequencyArrays(unittest.TestCase):
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
+
+    def test_create_frequency_array(self):
+        pass
+
+    def test_create_time_array(self):
+        pass
+
+    def test_get_sampling_frequency_from_time_array(self):
+        pass
+
+    def test_get_duration_from_time_array(self):
+        pass
+
+    def test_get_start_time_from_time_array(self):
+        pass
+
+    def test_get_sampling_frequency_from_frequency_array(self):
+        pass
+
+    def test_get_duration_from_frequency_array(self):
+        pass
+
+    def test_consistency_time_array_to_time_array(self):
+        pass
+
+    def test_consistency_frequency_array_to_time_frequency_array(self):
+        pass
+
+
 if __name__ == '__main__':
     unittest.main()
