@@ -58,13 +58,18 @@ def _infer_args_from_function_except_for_first_arg(func):
     return parameters
 
 
-def get_sampling_frequency(time_series):
+def get_sampling_frequency(time_array):
     """
     Calculate sampling frequency from a time series
 
+    Attributes:
+    -------
+    time_array: array_like
+        Time array to get sampling_frequency from
+
     Returns
     -------
-    float: Sampling frequency of the time series
+    Sampling frequency of the time series: float
 
     Raises
     -------
@@ -72,19 +77,24 @@ def get_sampling_frequency(time_series):
 
     """
     tol = 1e-10
-    if np.ptp(np.diff(time_series)) > tol:
+    if np.ptp(np.diff(time_array)) > tol:
         raise ValueError("Your time series was not evenly sampled")
     else:
-        return np.round(1. / (time_series[1] - time_series[0]), decimals=8)
+        return np.round(1. / (time_array[1] - time_array[0]), decimals=8)
 
 
 def get_sampling_frequency_and_duration_from_time_array(time_array):
     """
     Calculate sampling frequency and duration from a time array
 
+    Attributes:
+    -------
+    time_array: array_like
+        Time array to get sampling_frequency/duration from: array_like
+
     Returns
     -------
-    sampling_frequency, duration:
+    sampling_frequency, duration: float, float
 
     Raises
     -------
@@ -101,9 +111,14 @@ def get_sampling_frequency_and_duration_from_frequency_array(frequency_array):
     """
     Calculate sampling frequency and duration from a frequency array
 
+    Attributes:
+    -------
+    frequency_array: array_like
+        Frequency array to get sampling_frequency/duration from: array_like
+
     Returns
     -------
-    sampling_frequency, duration:
+    sampling_frequency, duration: float, float
 
     Raises
     -------
@@ -119,7 +134,7 @@ def get_sampling_frequency_and_duration_from_frequency_array(frequency_array):
     delta_freq = np.mean(np.diff(frequency_array))
     duration = np.round(1 / delta_freq, decimals=8)
 
-    # number_of_frequencies - 1 because we always have 0 and max frequency in there
+    # (number_of_frequencies - 1) because we always have 0 and max frequency in there
     sampling_frequency = np.round(2 * (number_of_frequencies - 1) / duration, decimals=8)
     return sampling_frequency, duration
 
@@ -200,7 +215,6 @@ def create_frequency_series(sampling_frequency, duration):
     -------
     sampling_frequency: float
     duration: float
-        duration of data
 
     Returns
     -------
@@ -279,7 +293,7 @@ def nfft(time_domain_strain, sampling_frequency):
 
     Returns
     -------
-    frequency_domain_strain, frequency_array: (array, array)
+    frequency_domain_strain, frequency_array: (array_like, array_like)
         Single-sided FFT of time domain strain normalised to units of
         strain / Hz, and the associated frequency_array.
 
@@ -315,7 +329,7 @@ def infft(frequency_domain_strain, sampling_frequency):
 
     Returns
     -------
-    time_domain_strain: array
+    time_domain_strain: array_like
         An array of the time domain strain
     """
     time_domain_strain_norm = np.fft.irfft(frequency_domain_strain)
