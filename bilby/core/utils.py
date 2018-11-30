@@ -313,7 +313,7 @@ def infft(frequency_domain_strain, sampling_frequency):
     frequency_domain_strain: array_like
         Single-sided, normalised FFT of the time-domain strain data (in units
         of strain / Hz).
-    sampling_frequency: float
+    sampling_frequency: int, float
         Sampling frequency of the data.
 
     Returns
@@ -321,10 +321,6 @@ def infft(frequency_domain_strain, sampling_frequency):
     time_domain_strain: array
         An array of the time domain strain
     """
-
-    if np.ndim(sampling_frequency) != 0:
-        raise ValueError("Sampling frequency must be integer or float")
-
     time_domain_strain_norm = np.fft.irfft(frequency_domain_strain)
     time_domain_strain = time_domain_strain_norm * sampling_frequency
     return time_domain_strain
