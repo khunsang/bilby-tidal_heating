@@ -214,7 +214,7 @@ def create_frequency_series(sampling_frequency, duration):
     number_of_frequencies = np.floor((number_of_samples - 1) / 2)
     delta_freq = 1. / duration
 
-    frequencies = delta_freq * np.linspace(0, number_of_frequencies, number_of_frequencies + 1)
+    frequencies = np.linspace(0, number_of_frequencies * delta_freq, number_of_frequencies + 1)
     # frequency_array must be odd
     if len(frequencies) % 2 == 0:
         frequencies = np.concatenate((frequencies, [frequencies[-1] + delta_freq]))
@@ -290,7 +290,7 @@ def nfft(time_domain_strain, sampling_frequency):
         time_domain_strain = np.append(time_domain_strain, 0)
 
     # frequency range
-    frequency_array = np.linspace(0, sampling_frequency / 2, int(len(time_domain_strain) / 2 + 1))
+    frequency_array = np.linspace(0, sampling_frequency / 2, int(len(time_domain_strain) / 2) + 1)
 
     # calculate FFT
     # rfft computes the fft for real inputs
