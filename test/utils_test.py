@@ -66,11 +66,14 @@ class TestTimeAndFrequencyArrays(unittest.TestCase):
         self.start_time = 1.3
         self.sampling_frequency = 10323
         self.duration = 8.5
+        self.frequency_array = utils.create_frequency_series(sampling_frequency=self.sampling_frequency,
+                                                             duration=self.duration)
 
     def tearDown(self):
         del self.start_time
         del self.sampling_frequency
         del self.duration
+        del self.frequency_array
 
     def test_create_frequency_array(self):
         pass
@@ -96,8 +99,13 @@ class TestTimeAndFrequencyArrays(unittest.TestCase):
     def test_consistency_time_array_to_time_array(self):
         pass
 
-    def test_consistency_frequency_array_to_time_frequency_array(self):
-        pass
+    def test_recover_sampling_frequency_from_frequency_array(self):
+        new_sampling_freq, new_duration = utils.get_sampling_frequency_and_duration_from_frequency_array(self.frequency_array)
+        self.assertEqual(self.sampling_frequency, new_sampling_freq)
+
+    def test_recover_duration_from_frequency_array(self):
+        new_sampling_freq, new_duration = utils.get_sampling_frequency_and_duration_from_frequency_array(self.frequency_array)
+        self.assertEqual(self.duration, new_duration)
 
 
 if __name__ == '__main__':
