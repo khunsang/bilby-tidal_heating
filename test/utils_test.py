@@ -63,10 +63,14 @@ class TestInferParameters(unittest.TestCase):
 class TestTimeAndFrequencyArrays(unittest.TestCase):
 
     def setUp(self):
-        pass
+        self.start_time = 1.3
+        self.sampling_frequency = 10323
+        self.duration = 8.5
 
     def tearDown(self):
-        pass
+        del self.start_time
+        del self.sampling_frequency
+        del self.duration
 
     def test_create_frequency_array(self):
         pass
