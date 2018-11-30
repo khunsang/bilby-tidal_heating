@@ -724,11 +724,11 @@ class TestInterferometerStrainDataEquals(unittest.TestCase):
         self.assertNotEqual(self.ifosd_1, self.ifosd_2)
 
     def test_eq_different_sampling_frequency(self):
-        self.ifosd_1.sampling_frequency -= 0.1
+        self.ifosd_1.sampling_frequency *= 2
         self.assertNotEqual(self.ifosd_1, self.ifosd_2)
 
     def test_eq_different_sampling_duration(self):
-        self.ifosd_1.duration -= 0.1
+        self.ifosd_1.duration *= 2
         self.assertNotEqual(self.ifosd_1, self.ifosd_2)
 
     def test_eq_different_start_time(self):
