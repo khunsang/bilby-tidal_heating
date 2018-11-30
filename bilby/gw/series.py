@@ -135,7 +135,7 @@ class CoupledTimeAndFrequencySeries(object):
                 'close to (tol = {}) an integer number. \nBut sampling_frequency={} and '
                 'duration={} multiply to {}'.format(
                     tol, self._sampling_frequency, self._duration,
-                    self._sampling_frequency*self._duration
+                    self._sampling_frequency * self._duration
                 )
             )
         self._duration = np.round(self._sampling_frequency * self._duration) / self.sampling_frequency
