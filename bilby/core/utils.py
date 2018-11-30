@@ -285,9 +285,6 @@ def nfft(time_domain_strain, sampling_frequency):
 
     """
 
-    if np.ndim(sampling_frequency) != 0:
-        raise ValueError("Sampling frequency must be interger or float")
-
     # add one zero padding if time series doesn't have even number of samples
     if np.mod(len(time_domain_strain), 2) == 1:
         time_domain_strain = np.append(time_domain_strain, 0)
