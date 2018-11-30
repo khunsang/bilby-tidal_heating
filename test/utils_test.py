@@ -24,7 +24,7 @@ class TestFFT(unittest.TestCase):
 
         frequency_domain_strain, frequencies = bilby.core.utils.nfft(time_domain_strain, self.sampling_frequency)
         frequency_at_peak = frequencies[np.argmax(np.abs(frequency_domain_strain))]
-        self.assertAlmostEqual(injected_frequency, frequency_at_peak, places=2)
+        self.assertAlmostEqual(injected_frequency, frequency_at_peak, places=1)
 
     def test_nfft_infft(self):
         time_domain_strain = np.random.normal(0, 1, 10)
