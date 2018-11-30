@@ -158,6 +158,34 @@ def create_time_series(sampling_frequency, duration, starting_time=0.):
                        num=int(duration*sampling_frequency)+1)
 
 
+def create_frequency_series(sampling_frequency, duration):
+    """ Create a frequency series with the correct length and spacing.
+
+    Parameters
+    -------
+    sampling_frequency: float
+    duration: float
+
+    Returns
+    -------
+    array_like: frequency series
+
+    """
+    number_of_samples = duration * sampling_frequency
+    number_of_samples = int(np.round(number_of_samples))
+
+    # prepare for FFT
+    number_of_frequencies = np.floor((number_of_samples - 1) / 2)
+    delta_freq = 1. / duration
+
+    frequencies = np.linspace(0, number_of_frequencies * delta_freq, number_of_frequencies + 1)
+    # frequency_array must be odd
+    if len(frequencies) % 2 == 0:
+        frequencies = np.concatenate((frequencies, [frequencies[-1] + delta_freq]))
+
+    return frequencies
+
+
 def ra_dec_to_theta_phi(ra, dec, gmst):
     """ Convert from RA and DEC to polar coordinates on celestial sphere
 
@@ -206,34 +234,6 @@ def gps_time_to_gmst(gps_time):
     sidereal_time = omega_earth * (gps_time - gps_2000) + gmst_2000 + correction_2018
     gmst = fmod(sidereal_time, 2 * np.pi)
     return gmst
-
-
-def create_frequency_series(sampling_frequency, duration):
-    """ Create a frequency series with the correct length and spacing.
-
-    Parameters
-    -------
-    sampling_frequency: float
-    duration: float
-
-    Returns
-    -------
-    array_like: frequency series
-
-    """
-    number_of_samples = duration * sampling_frequency
-    number_of_samples = int(np.round(number_of_samples))
-
-    # prepare for FFT
-    number_of_frequencies = np.floor((number_of_samples - 1) / 2)
-    delta_freq = 1. / duration
-
-    frequencies = np.linspace(0, number_of_frequencies * delta_freq, number_of_frequencies + 1)
-    # frequency_array must be odd
-    if len(frequencies) % 2 == 0:
-        frequencies = np.concatenate((frequencies, [frequencies[-1] + delta_freq]))
-
-    return frequencies
 
 
 def create_white_noise(sampling_frequency, duration):
