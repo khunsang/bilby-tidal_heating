@@ -68,6 +68,9 @@ class TestTimeAndFrequencyArrays(unittest.TestCase):
         self.duration = 8.5
         self.frequency_array = utils.create_frequency_series(sampling_frequency=self.sampling_frequency,
                                                              duration=self.duration)
+        self.time_array = utils.create_time_series(sampling_frequency=self.sampling_frequency,
+                                                   duration=self.duration,
+                                                   starting_time=self.start_time)
 
     def tearDown(self):
         del self.start_time
@@ -91,21 +94,28 @@ class TestTimeAndFrequencyArrays(unittest.TestCase):
         pass
 
     def test_get_sampling_frequency_from_frequency_array(self):
-        pass
-
-    def test_get_duration_from_frequency_array(self):
-        pass
-
-    def test_consistency_time_array_to_time_array(self):
-        pass
-
-    def test_recover_sampling_frequency_from_frequency_array(self):
-        new_sampling_freq, new_duration = utils.get_sampling_frequency_and_duration_from_frequency_array(self.frequency_array)
+        new_sampling_freq, new_duration = utils.get_sampling_frequency_and_duration_from_frequency_array(
+            self.frequency_array)
         self.assertEqual(self.sampling_frequency, new_sampling_freq)
 
-    def test_recover_duration_from_frequency_array(self):
-        new_sampling_freq, new_duration = utils.get_sampling_frequency_and_duration_from_frequency_array(self.frequency_array)
+    def test_get_duration_from_frequency_array(self):
+        new_sampling_freq, new_duration = utils.get_sampling_frequency_and_duration_from_frequency_array(
+            self.frequency_array)
         self.assertEqual(self.duration, new_duration)
+
+    def test_consistency_time_array_to_time_array(self):
+        new_sampling_frequency, new_duration = utils.get_sampling_frequency_and_duration_from_time_array(self.time_array)
+        new_start_time = self.time_array[0]
+        new_time_array = utils.create_time_series(sampling_frequency=new_sampling_frequency,
+                                                  duration=new_duration,
+                                                  starting_time=new_start_time)
+        self.assertTrue(np.allclose(self.time_array, new_time_array))
+
+    def test_consistency_frequency_array_to_frequency_array(self):
+        new_sampling_frequency, new_duration = utils.get_sampling_frequency_and_duration_from_frequency_array(self.frequency_array)
+        new_frequency_array = utils.create_frequency_series(sampling_frequency=new_sampling_frequency,
+                                                            duration=new_duration)
+        self.assertTrue(np.allclose(self.frequency_array, new_frequency_array))
 
 
 if __name__ == '__main__':
