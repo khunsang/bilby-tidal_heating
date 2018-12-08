@@ -304,7 +304,7 @@ def nfft(time_domain_strain, sampling_frequency):
         time_domain_strain = np.append(time_domain_strain, 0)
 
     # frequency range
-    frequency_array = np.linspace(0, sampling_frequency / 2, int(len(time_domain_strain) / 2) + 1)
+    frequency_array = np.linspace(0, sampling_frequency / 2, int(len(time_domain_strain) / 2))
 
     # calculate FFT
     # rfft computes the fft for real inputs
