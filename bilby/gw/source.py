@@ -12,6 +12,7 @@ from .utils import (lalsim_SimInspiralTransformPrecessingNewInitialConditions,
 
 try:
     import lal
+    import lalsimulation as lalsim
 except ImportError:
     logger.warning("You do not have lalsuite installed currently. You will"
                    " not be able to use some of the prebuilt functions.")
