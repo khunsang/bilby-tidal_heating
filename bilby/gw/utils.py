@@ -14,6 +14,12 @@ except ImportError:
     logger.warning("You do not have gwpy installed currently. You will "
                    " not be able to use some of the prebuilt functions.")
 
+try:
+    import lalsimulation as lalsim
+except ImportError:
+    logger.warning("You do not have lalsuite installed currently. You will"
+                   " not be able to use some of the prebuilt functions.")
+
 
 def asd_from_freq_series(freq_data, df):
     """
@@ -670,3 +676,80 @@ def blockwise_dot_product(matrix_a, matrix_b, max_elements=int(2 ** 27),
             del a_block
 
     return out
+
+def convert_args_list_to_float(*args_list):
+    """ Converts inputs to floats, returns a list in the same order as the input"""
+    try:
+        args_list = [float(arg) for arg in args_list]
+    except ValueError:
+        raise ValueError("Unable to convert inputs to floats")
+    return args_list
+
+
+def lalsim_SimInspiralTransformPrecessingNewInitialConditions(
+        theta_jn, phi_jl, tilt_1, tilt_2, phi_12, a_1, a_2, mass_1, mass_2,
+        reference_frequency, phase):
+
+    args_list = convert_args_list_to_float(
+        theta_jn, phi_jl, tilt_1, tilt_2, phi_12, a_1, a_2, mass_1, mass_2,
+        reference_frequency, phase)
+
+    return lalsim.SimInspiralTransformPrecessingNewInitialConditions(*args_list)
+
+
+def lalsim_GetApproximantFromString(waveform_approximant):
+    if isinstance(waveform_approximant, str):
+        return lalsim.GetApproximantFromString(waveform_approximant)
+    else:
+        raise ValueError("waveform_approximant must be of type str")
+
+
+def lalsim_SimInspiralChooseFDWaveform(
+        mass_1, mass_2, spin_1x, spin_1y, spin_1z, spin_2x, spin_2y,
+        spin_2z, luminosity_distance, iota, phase,
+        longitude_ascending_nodes, eccentricity, mean_per_ano, delta_frequency,
+        minimum_frequency, maximum_frequency, reference_frequency,
+        waveform_dictionary, approximant):
+
+    # Convert values to floats
+    [mass_1, mass_2, spin_1x, spin_1y, spin_1z, spin_2x, spin_2y, spin_2z,
+     luminosity_distance, iota, phase, longitude_ascending_nodes,
+     eccentricity, mean_per_ano, delta_frequency, minimum_frequency,
+     maximum_frequency, reference_frequency] = convert_args_list_to_float(
+        mass_1, mass_2, spin_1x, spin_1y, spin_1z, spin_2x, spin_2y, spin_2z,
+        luminosity_distance, iota, phase, longitude_ascending_nodes,
+        eccentricity, mean_per_ano, delta_frequency, minimum_frequency,
+        maximum_frequency, reference_frequency)
+
+    # Note, this is the approximant number returns by GetApproximantFromString
+    if isinstance(approximant, int) is False:
+        raise ValueError("approximant not an int")
+
+    return lalsim.SimInspiralChooseFDWaveform(
+        mass_1, mass_2, spin_1x, spin_1y, spin_1z, spin_2x, spin_2y,
+        spin_2z, luminosity_distance, iota, phase,
+        longitude_ascending_nodes, eccentricity, mean_per_ano, delta_frequency,
+        minimum_frequency, maximum_frequency, reference_frequency,
+        waveform_dictionary, approximant)
+
+
+def lalsim_SimInspiralWaveformParamsInsertTidalLambda1(
+        waveform_dictionary, lambda_1):
+    try:
+        lambda_1 = float(lambda_1)
+    except ValueError:
+        raise ValueError("Unable to convert lambda_1 to float")
+
+    return lalsim.SimInspiralWaveformParamsInsertTidalLambda1(
+        waveform_dictionary, lambda_1)
+
+
+def lalsim_SimInspiralWaveformParamsInsertTidalLambda2(
+        waveform_dictionary, lambda_2):
+    try:
+        lambda_2 = float(lambda_2)
+    except ValueError:
+        raise ValueError("Unable to convert lambda_2 to float")
+
+    return lalsim.SimInspiralWaveformParamsInsertTidalLambda2(
+        waveform_dictionary, lambda_2)

@@ -2,9 +2,11 @@ from __future__ import absolute_import
 
 import os
 import sys
+
 import numpy as np
 from pandas import DataFrame
 from deepdish.io import load, save
+
 from ..utils import logger, check_directory_exists_and_if_not_mkdir
 from .base_sampler import Sampler, NestedSampler
 
@@ -391,6 +393,7 @@ class Dynesty(NestedSampler):
         self.sampler.saved_scale = [self.sampler.saved_scale[-1]]
 
     def generate_trace_plots(self, dynesty_results):
+        check_directory_exists_and_if_not_mkdir(self.outdir)
         filename = '{}/{}_trace.png'.format(self.outdir, self.label)
         logger.debug("Writing trace plot to {}".format(filename))
         from dynesty import plotting as dyplot
