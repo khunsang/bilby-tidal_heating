@@ -677,6 +677,7 @@ def blockwise_dot_product(matrix_a, matrix_b, max_elements=int(2 ** 27),
 
     return out
 
+
 def convert_args_list_to_float(*args_list):
     """ Converts inputs to floats, returns a list in the same order as the input"""
     try:
