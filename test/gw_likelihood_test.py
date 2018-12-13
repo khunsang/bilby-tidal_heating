@@ -504,7 +504,7 @@ class TestROQLikelihood(unittest.TestCase):
         self.roq_likelihood = bilby.gw.likelihood.ROQGravitationalWaveTransient(
             interferometers=ifos, waveform_generator=roq_wfg,
             linear_matrix=basis_matrix_linear,
-            quadratic_matrix=basic_matrix_quadratic, prior=self.priors)
+            quadratic_matrix=basic_matrix_quadratic, priors=self.priors)
         pass
 
     def tearDown(self):

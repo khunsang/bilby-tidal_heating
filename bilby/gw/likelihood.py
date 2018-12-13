@@ -387,10 +387,10 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
     This follows FIXME: Smith et al.
     """
     def __init__(self, interferometers, waveform_generator,
-                 linear_matrix, quadratic_matrix, prior):
+                 linear_matrix, quadratic_matrix, priors):
         GravitationalWaveTransient.__init__(
             self, interferometers=interferometers,
-            waveform_generator=waveform_generator, prior=prior)
+            waveform_generator=waveform_generator, priors=priors)
 
         self.linear_matrix = linear_matrix
         self.quadratic_matrix = quadratic_matrix
@@ -493,10 +493,10 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
             # array of relative time shifts to be applied to the data
             # 0.045s comes from time for GW to traverse the Earth
             self.time_samples = np.linspace(
-                self.prior['geocent_time'].minimum - 0.045,
-                self.prior['geocent_time'].maximum + 0.045,
-                int(ceil((self.prior['geocent_time'].maximum -
-                          self.prior['geocent_time'].minimum + 0.09) *
+                self.priors['geocent_time'].minimum - 0.045,
+                self.priors['geocent_time'].maximum + 0.045,
+                int(ceil((self.priors['geocent_time'].maximum -
+                          self.priors['geocent_time'].minimum + 0.09) *
                          ifo.strain_data.sampling_frequency)))
             self.time_samples -= ifo.strain_data.start_time
             time_space = self.time_samples[1] - self.time_samples[0]
