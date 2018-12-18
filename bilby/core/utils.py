@@ -132,7 +132,7 @@ def get_sampling_frequency_and_duration_from_frequency_array(frequency_array):
         raise ValueError("Your frequency series was not evenly sampled")
 
     number_of_frequencies = len(frequency_array)
-    delta_freq = np.mean(frequency_array[1] - frequency_array[0])
+    delta_freq = frequency_array[1] - frequency_array[0]
     duration = np.round(1 / delta_freq, decimals=_TOL)
 
     # (number_of_frequencies - 1) because we always have 0 and max frequency in there
