@@ -145,20 +145,15 @@ class Sampler(object):
         """
         Assures that the selected sampler exists in the current Python environment.
         The conversion to `.lower()` is to make sure the sampler name matches the
-        package name exactly for most packages. Since PyPolyChord does not follow
-        this convention, we have to try to import it separately without `lower`
-
+        package name exactly.
         """
         external_sampler_name = self.__class__.__name__
         try:
             self.external_sampler = __import__(external_sampler_name.lower())
         except (ImportError, TabError):
-            try:
-                self.external_sampler = __import__(external_sampler_name)
-            except ImportError:
-                raise ImportError(
-                    "Sampler {} is not installed on this system"
-                    .format(external_sampler_name))
+            raise ImportError(
+                "Sampler {} is not installed on this system"
+                .format(external_sampler_name))
 
     def _verify_kwargs_against_default_kwargs(self):
         """
