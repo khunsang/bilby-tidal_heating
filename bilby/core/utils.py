@@ -173,19 +173,18 @@ def create_frequency_series(sampling_frequency, duration):
 
     """
     _check_legal_sampling_frequency_and_duration(sampling_frequency, duration)
-    number_of_samples = duration * sampling_frequency
-    number_of_samples = int(np.round(number_of_samples))
+    number_of_samples = int(duration * sampling_frequency)
 
     # prepare for FFT
-    number_of_frequencies = np.floor((number_of_samples - 1) / 2)
-    delta_freq = 1. / duration
+    number_of_frequencies = int(np.floor((number_of_samples - 1) / 2) + 1)
 
-    frequencies = np.linspace(0, number_of_frequencies * delta_freq, int(number_of_frequencies + 1))
     # frequency_array must be odd
-    if len(frequencies) % 2 == 0:
-        frequencies = np.concatenate((frequencies, [frequencies[-1] + delta_freq]))
+    if number_of_frequencies % 2 == 0:
+        number_of_frequencies += 1
 
-    return frequencies
+    return np.linspace(start=0,
+                       stop=sampling_frequency/2,
+                       num=number_of_frequencies)
 
 
 def _check_legal_sampling_frequency_and_duration(sampling_frequency, duration):
