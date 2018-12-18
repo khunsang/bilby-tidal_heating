@@ -99,7 +99,7 @@ class TestTimeAndFrequencyArrays(unittest.TestCase):
         self.assertEqual(self.sampling_frequency, new_sampling_freq)
 
     def test_get_duration_from_time_array(self):
-        _, new_duration = utils.get_sampling_frequency_and_duration_from_frequency_array(self.frequency_array)
+        _, new_duration = utils.get_sampling_frequency_and_duration_from_time_array(self.time_array)
         self.assertEqual(self.duration, new_duration)
 
     def test_get_start_time_from_time_array(self):
