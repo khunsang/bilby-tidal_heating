@@ -21,6 +21,7 @@ radius_of_earth = 6371 * 1e3  # metres
 
 _TOL = 1e-14
 
+
 def infer_parameters_from_function(func):
     """ Infers the arguments of a function
         (except the first arg which is assumed to be the dep. variable).
@@ -185,7 +186,7 @@ def create_frequency_series(sampling_frequency, duration):
         number_of_frequencies += 1
 
     return np.linspace(start=0,
-                       stop=sampling_frequency/2,
+                       stop=sampling_frequency / 2,
                        num=number_of_frequencies)
 
 
