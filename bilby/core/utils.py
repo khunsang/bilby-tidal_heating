@@ -19,6 +19,7 @@ parsec = 3.085677581 * 1e16
 solar_mass = 1.98855 * 1e30
 radius_of_earth = 6371 * 1e3  # metres
 
+_TOL = 1e-14
 
 def infer_parameters_from_function(func):
     """ Infers the arguments of a function
@@ -80,7 +81,7 @@ def get_sampling_frequency(time_array):
     if np.ptp(np.diff(time_array)) > tol:
         raise ValueError("Your time series was not evenly sampled")
     else:
-        return np.round(1. / (time_array[1] - time_array[0]), decimals=8)
+        return np.round(1. / (time_array[1] - time_array[0]), decimals=_TOL)
 
 
 def get_sampling_frequency_and_duration_from_time_array(time_array):
@@ -103,7 +104,7 @@ def get_sampling_frequency_and_duration_from_time_array(time_array):
     """
 
     sampling_frequency = get_sampling_frequency(time_array)
-    duration = np.round(time_array[-1] - time_array[0], decimals=8)
+    duration = np.round(time_array[-1] - time_array[0], decimals=_TOL)
     return sampling_frequency, duration
 
 
@@ -132,10 +133,10 @@ def get_sampling_frequency_and_duration_from_frequency_array(frequency_array):
 
     number_of_frequencies = len(frequency_array)
     delta_freq = np.mean(frequency_array[1] - frequency_array[0])
-    duration = np.round(1 / delta_freq, decimals=8)
+    duration = np.round(1 / delta_freq, decimals=_TOL)
 
     # (number_of_frequencies - 1) because we always have 0 and max frequency in there
-    sampling_frequency = np.round(2 * (number_of_frequencies - 1) / duration, decimals=8)
+    sampling_frequency = np.round(2 * (number_of_frequencies - 1) / duration, decimals=_TOL)
     return sampling_frequency, duration
 
 
@@ -154,9 +155,10 @@ def create_time_series(sampling_frequency, duration, starting_time=0.):
 
     """
     _check_legal_sampling_frequency_and_duration(sampling_frequency, duration)
+    number_of_samples = int(duration * sampling_frequency) + 1
     return np.linspace(start=starting_time,
                        stop=duration + starting_time,
-                       num=int(duration * sampling_frequency) + 1)
+                       num=number_of_samples)
 
 
 def create_frequency_series(sampling_frequency, duration):
@@ -199,16 +201,13 @@ def _check_legal_sampling_frequency_and_duration(sampling_frequency, duration):
     duration: float
 
     """
-    if sampling_frequency is None or duration is None:
-        return
     num = sampling_frequency * duration
-    tol = 1e-10
-    if np.abs(num - np.round(num)) > tol:
+    if np.abs(num - np.round(num)) > _TOL:
         raise IllegalDurationAndSamplingFrequencyException(
             '\nYour sampling frequency and duration must multiply to a number'
             'close to (tol = {}) an integer number. \nBut sampling_frequency={} and '
             'duration={} multiply to {}'.format(
-                tol, sampling_frequency, duration,
+                _TOL, sampling_frequency, duration,
                 sampling_frequency * duration
             )
         )
