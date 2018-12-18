@@ -19,7 +19,6 @@ class CoupledTimeAndFrequencySeries(object):
         """
         self._duration = duration
         self._sampling_frequency = sampling_frequency
-        self._check_legal_duration_and_sampling_frequency()
         self.start_time = start_time
         self._frequency_array_updated = False
         self._time_array_updated = False
@@ -102,7 +101,6 @@ class CoupledTimeAndFrequencySeries(object):
     @duration.setter
     def duration(self, duration):
         self._duration = duration
-        self._check_legal_duration_and_sampling_frequency()
         self._frequency_array_updated = False
         self._time_array_updated = False
 
@@ -120,25 +118,8 @@ class CoupledTimeAndFrequencySeries(object):
     @sampling_frequency.setter
     def sampling_frequency(self, sampling_frequency):
         self._sampling_frequency = sampling_frequency
-        self._check_legal_duration_and_sampling_frequency()
         self._frequency_array_updated = False
         self._time_array_updated = False
-
-    def _check_legal_duration_and_sampling_frequency(self):
-        if self._sampling_frequency is None or self._duration is None:
-            return
-        num = self._sampling_frequency * self._duration
-        tol = 1e-8
-        if np.abs(num - np.round(num)) > tol:
-            raise IllegalDurationAndSamplingFrequencyException(
-                '\nYour sampling frequency and duration must multiply to a number'
-                'close to (tol = {}) an integer number. \nBut sampling_frequency={} and '
-                'duration={} multiply to {}'.format(
-                    tol, self._sampling_frequency, self._duration,
-                    self._sampling_frequency * self._duration
-                )
-            )
-        self._duration = np.round(self._sampling_frequency * self._duration) / self.sampling_frequency
 
     @property
     def start_time(self):
@@ -148,7 +129,3 @@ class CoupledTimeAndFrequencySeries(object):
     def start_time(self, start_time):
         self._start_time = start_time
         self._time_array_updated = False
-
-
-class IllegalDurationAndSamplingFrequencyException(Exception):
-    pass

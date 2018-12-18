@@ -153,6 +153,7 @@ def create_time_series(sampling_frequency, duration, starting_time=0.):
     float: An equidistant time series given the parameters
 
     """
+    _check_legal_sampling_frequency_and_duration(sampling_frequency, duration)
     return np.linspace(start=starting_time,
                        stop=duration + starting_time,
                        num=int(duration * sampling_frequency) + 1)
@@ -171,6 +172,7 @@ def create_frequency_series(sampling_frequency, duration):
     array_like: frequency series
 
     """
+    _check_legal_sampling_frequency_and_duration(sampling_frequency, duration)
     number_of_samples = duration * sampling_frequency
     number_of_samples = int(np.round(number_of_samples))
 
@@ -178,12 +180,39 @@ def create_frequency_series(sampling_frequency, duration):
     number_of_frequencies = np.floor((number_of_samples - 1) / 2)
     delta_freq = 1. / duration
 
-    frequencies = np.linspace(0, number_of_frequencies * delta_freq, number_of_frequencies + 1)
+    frequencies = np.linspace(0, number_of_frequencies * delta_freq, int(number_of_frequencies + 1))
     # frequency_array must be odd
     if len(frequencies) % 2 == 0:
         frequencies = np.concatenate((frequencies, [frequencies[-1] + delta_freq]))
 
     return frequencies
+
+
+def _check_legal_sampling_frequency_and_duration(sampling_frequency, duration):
+    """ By convention, sampling_frequency and duration have to multiply to an integer
+
+    This will check if the product of both parameters multiplies reasonably close
+    to an integer.
+
+    Parameters
+    -------
+    sampling_frequency: float
+    duration: float
+
+    """
+    if sampling_frequency is None or duration is None:
+        return
+    num = sampling_frequency * duration
+    tol = 1e-10
+    if np.abs(num - np.round(num)) > tol:
+        raise IllegalDurationAndSamplingFrequencyException(
+            '\nYour sampling frequency and duration must multiply to a number'
+            'close to (tol = {}) an integer number. \nBut sampling_frequency={} and '
+            'duration={} multiply to {}'.format(
+                tol, sampling_frequency, duration,
+                sampling_frequency * duration
+            )
+        )
 
 
 def ra_dec_to_theta_phi(ra, dec, gmst):
@@ -723,3 +752,7 @@ else:
             break
         except Exception:
             print(traceback.format_exc())
+
+
+class IllegalDurationAndSamplingFrequencyException(Exception):
+    pass
