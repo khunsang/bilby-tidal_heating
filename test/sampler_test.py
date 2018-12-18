@@ -475,10 +475,9 @@ class TestRunningSamplers(unittest.TestCase):
             nlive=100, save=False)
 
     def test_run_pypolychord(self):
-        if sys.version_info[0] == 3:
-            _ = bilby.run_sampler(
-                likelihood=self.likelihood, priors=self.priors,
-                sampler='pypolychord', nlive=100, save=False)
+        _ = bilby.run_sampler(
+            likelihood=self.likelihood, priors=self.priors,
+            sampler='pypolychord', nlive=100, save=False)
 
     def test_run_ptemcee(self):
         _ = bilby.run_sampler(
