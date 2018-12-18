@@ -19,7 +19,7 @@ parsec = 3.085677581 * 1e16
 solar_mass = 1.98855 * 1e30
 radius_of_earth = 6371 * 1e3  # metres
 
-_TOL = 1e-14
+_TOL = 14
 
 
 def infer_parameters_from_function(func):
@@ -137,7 +137,7 @@ def get_sampling_frequency_and_duration_from_frequency_array(frequency_array):
     duration = np.round(1 / delta_freq, decimals=_TOL)
 
     # (number_of_frequencies - 1) because we always have 0 and max frequency in there
-    sampling_frequency = np.round(2 * (number_of_frequencies - 1) / duration, decimals=_TOL)
+    sampling_frequency = np.round(2 * (number_of_frequencies - 1) / duration, decimals=14)
     return sampling_frequency, duration
 
 
@@ -206,8 +206,8 @@ def _check_legal_sampling_frequency_and_duration(sampling_frequency, duration):
     if np.abs(num - np.round(num)) > _TOL:
         raise IllegalDurationAndSamplingFrequencyException(
             '\nYour sampling frequency and duration must multiply to a number'
-            'close to (tol = {}) an integer number. \nBut sampling_frequency={} and '
-            'duration={} multiply to {}'.format(
+            'up to (tol = {}) decimals close to an integer number. '
+            '\nBut sampling_frequency={} and  duration={} multiply to {}'.format(
                 _TOL, sampling_frequency, duration,
                 sampling_frequency * duration
             )
