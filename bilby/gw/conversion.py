@@ -644,10 +644,8 @@ def _generate_all_cbc_parameters(sample, defaults, base_conversion,
     output_sample = generate_mass_parameters(output_sample)
     output_sample = generate_spin_parameters(output_sample)
     if likelihood is not None:
-        if likelihood.distance_marginalization:
-            output_sample = \
-                generate_distance_samples_from_marginalized_likelihood(
-                    output_sample, likelihood)
+        generate_posterior_samples_from_marginalized_likelihood(
+            samples=output_sample, likelihood=likelihood)
     output_sample = generate_source_frame_parameters(output_sample)
     compute_snrs(output_sample, likelihood)
     return output_sample
@@ -966,42 +964,128 @@ def compute_snrs(sample, likelihood):
         logger.debug('Not computing SNRs.')
 
 
-def generate_distance_samples_from_marginalized_likelihood(samples, likelihood):
+def generate_posterior_samples_from_marginalized_likelihood(
+        samples, likelihood):
     """
     Reconstruct the distance posterior from a run which used a likelihood which
-    explicitly marginalised over distance.
+    explicitly marginalised over time/distance/phase.
 
     See Eq. (C29-C32) of https://arxiv.org/abs/1809.02293
 
     Parameters
     ----------
     samples: DataFrame
-        Posterior from run with distance marginalisation turned on.
+        Posterior from run with a marginalised likelihood.
     likelihood: bilby.gw.likelihood.GravitationalWaveTransient
         Likelihood used during sampling.
 
     Return
     ------
     sample: DataFrame
-        Returns the posterior with distance samples.
+        Returns the posterior with new samples.
     """
-    if not likelihood.distance_marginalization:
+    if not any([likelihood.phase_marginalization,
+                likelihood.distance_marginalization,
+                likelihood.time_marginalization]):
         return samples
-    if likelihood.phase_marginalization or likelihood.time_marginalization:
-        logger.warning('Cannot currently reconstruct distance posterior '
-                       'when other marginalizations are turned on.')
-        return samples
+    else:
+        logger.info('Reconstructing marginalised parameters.')
     if isinstance(samples, dict):
         pass
     elif isinstance(samples, DataFrame):
+        new_time_samples = list()
+        new_distance_samples = list()
+        new_phase_samples = list()
         for ii in range(len(samples)):
-            temp = _generate_distance_sample_from_marginalized_likelihood(
-                dict(samples.iloc[ii]), likelihood)
-            samples['luminosity_distance'][ii] = temp['luminosity_distance']
+            sample = dict(samples.iloc[ii]).copy()
+            signal_polarizations = \
+                likelihood.waveform_generator.frequency_domain_strain(
+                    sample)
+            if likelihood.time_marginalization:
+                sample = generate_time_sample_from_marginalized_likelihood(
+                    sample=sample, likelihood=likelihood,
+                    signal_polarizations=signal_polarizations)
+            if likelihood.distance_marginalization:
+                sample = generate_distance_sample_from_marginalized_likelihood(
+                    sample=sample, likelihood=likelihood,
+                    signal_polarizations=signal_polarizations)
+            if likelihood.phase_marginalization:
+                sample = generate_phase_sample_from_marginalized_likelihood(
+                    sample=sample, likelihood=likelihood,
+                    signal_polarizations=signal_polarizations)
+            new_time_samples.append(sample['geocent_time'])
+            new_distance_samples.append(sample['luminosity_distance'])
+            new_phase_samples.append(sample['phase'])
+        samples['geocent_time'] = new_time_samples
+        samples['luminosity_distance'] = new_distance_samples
+        samples['phase'] = new_phase_samples
     return samples
 
 
-def _generate_distance_sample_from_marginalized_likelihood(sample, likelihood):
+def generate_time_sample_from_marginalized_likelihood(
+        sample, likelihood, signal_polarizations=None):
+    """
+    Generate a single sample from the posterior distribution for coalescence
+    time when using a likelihood which explicitly marginalises over time.
+
+    See Eq. (C29-C32) of https://arxiv.org/abs/1809.02293
+
+    Parameters
+    ----------
+    sample: dict
+        The set of parameters used with the marginalised likelihood.
+    likelihood: bilby.gw.likelihood.GravitationalWaveTransient
+        The likelihood used.
+    signal_polarizations: dict, optional
+        Polarizations modes of the template.
+
+    Returns
+    -------
+    sample: dict
+        Modified dictionary with the time sampled from the posterior.
+    """
+    if signal_polarizations is None:
+        signal_polarizations = \
+            likelihood.waveform_generator.frequency_domain_strain(sample)
+    d_inner_h = np.zeros_like(likelihood.time_prior_array, dtype=np.complex)
+    rho_opt_sq = 0
+    for ifo in likelihood.interferometers:
+        signal = ifo.get_detector_response(signal_polarizations, sample)
+        d_inner_h += np.fft.fft(signal[0:-1] *
+                                ifo.frequency_domain_strain.conjugate()[0:-1] /
+                                ifo.power_spectral_density_array[0:-1])
+        rho_opt_sq += ifo.optimal_snr_squared(signal=signal)
+
+    if likelihood.distance_marginalization:
+        rho_mf_ref_tc_array, rho_opt_ref = likelihood._setup_rho(
+            d_inner_h, rho_opt_sq)
+        if likelihood.phase_marginalization:
+            time_log_like = likelihood._interp_dist_margd_loglikelihood(
+                abs(rho_mf_ref_tc_array), rho_opt_ref)
+        else:
+            time_log_like = likelihood._interp_dist_margd_loglikelihood(
+                rho_mf_ref_tc_array.real, rho_opt_ref)
+    elif likelihood.phase_marginalization:
+        time_log_like = (likelihood._bessel_function_interped(abs(d_inner_h)) -
+                         rho_opt_sq.real / 2)
+    else:
+        time_log_like = (d_inner_h.real - rho_opt_sq.real / 2)
+
+    time_post = np.exp(time_log_like - max(time_log_like)) * \
+                likelihood.time_prior_array
+
+    keep = (time_post > 1e-8)
+    if sum(keep) == 1:
+        sample['geocent_time'] = float(likelihood._times[keep])
+    else:
+        time_post = time_post[keep]
+        times = likelihood._times[keep]
+        sample['geocent_time'] = Interped(times, time_post).sample()
+    return sample
+
+
+def generate_distance_sample_from_marginalized_likelihood(
+        sample, likelihood, signal_polarizations=None):
     """
     Generate a single sample from the posterior distribution for luminosity
     distance when using a likelihood which explicitly marginalises over
@@ -1015,14 +1099,19 @@ def _generate_distance_sample_from_marginalized_likelihood(sample, likelihood):
         The set of parameters used with the marginalised likelihood.
     likelihood: bilby.gw.likelihood.GravitationalWaveTransient
         The likelihood used.
+    signal_polarizations: dict, optional
+        Polarizations modes of the template.
+        Note: These are rescaled in place after the distance sample is
+              generated to allow further parameter reconstruction to occur.
 
     Returns
     -------
     sample: dict
-        Modifed dictionary with the distance sampled from the posterior.
+        Modified dictionary with the distance sampled from the posterior.
     """
-    signal_polarizations = \
-        likelihood.waveform_generator.frequency_domain_strain(sample)
+    if signal_polarizations is None:
+        signal_polarizations = \
+            likelihood.waveform_generator.frequency_domain_strain(sample)
     d_inner_h = 0
     rho_opt_sq = 0
     for ifo in likelihood.interferometers:
@@ -1036,11 +1125,64 @@ def _generate_distance_sample_from_marginalized_likelihood(sample, likelihood):
     rho_opt_sq_dist = (rho_opt_sq * sample['luminosity_distance']**2 /
                        likelihood._distance_array**2)
 
-    distance_log_like = (d_inner_h_dist.real - rho_opt_sq_dist.real / 2)
+    if likelihood.phase_marginalization:
+        distance_log_like = (
+                likelihood._bessel_function_interped(abs(d_inner_h_dist)) -
+                rho_opt_sq_dist.real / 2)
+    else:
+        distance_log_like = (d_inner_h_dist.real - rho_opt_sq_dist.real / 2)
 
     distance_post = np.exp(distance_log_like - max(distance_log_like)) *\
         likelihood.distance_prior_array
 
     sample['luminosity_distance'] = Interped(
         likelihood._distance_array, distance_post).sample()
+
+    for mode in signal_polarizations:
+        signal_polarizations[mode] *= (
+            likelihood._ref_dist / sample['luminosity_distance'])
+    return sample
+
+
+def generate_phase_sample_from_marginalized_likelihood(
+        sample, likelihood, signal_polarizations=None):
+    """
+    Generate a single sample from the posterior distribution for phase when
+    using a likelihood which explicitly marginalises over phase.
+
+    See Eq. (C29-C32) of https://arxiv.org/abs/1809.02293
+
+    Parameters
+    ----------
+    sample: dict
+        The set of parameters used with the marginalised likelihood.
+    likelihood: bilby.gw.likelihood.GravitationalWaveTransient
+        The likelihood used.
+    signal_polarizations: dict, optional
+        Polarizations modes of the template.
+
+    Returns
+    -------
+    sample: dict
+        Modified dictionary with the phase sampled from the posterior.
+
+    Notes
+    -----
+    This is only valid when assumes that mu(phi) \propto exp(-2i phi).
+    """
+    if signal_polarizations is None:
+        signal_polarizations = \
+            likelihood.waveform_generator.frequency_domain_strain(sample)
+    d_inner_h = 0
+    rho_opt_sq = 0
+    for ifo in likelihood.interferometers:
+        signal = ifo.get_detector_response(signal_polarizations, sample)
+        d_inner_h += ifo.inner_product(signal=signal)
+        rho_opt_sq += ifo.optimal_snr_squared(signal=signal)
+
+    phases = np.linspace(0, 2 * np.pi, 101)
+    phasor = np.exp(-2j * phases)
+    phase_log_post = d_inner_h * phasor - rho_opt_sq / 2
+    phase_post = np.exp(phase_log_post.real - max(phase_log_post.real))
+    sample['phase'] = Interped(phases, phase_post).sample()
     return sample
