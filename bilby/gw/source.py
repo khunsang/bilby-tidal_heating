@@ -52,6 +52,7 @@ def lal_binary_black_hole(
         Angle between the total binary angular momentum and the line of sight
     phase: float
         The phase at coalescence
+    Newly added
     kwargs: dict
         Optional keyword arguments
         Supported arguments:
