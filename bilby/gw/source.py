@@ -136,8 +136,9 @@ def lal_binary_black_hole(
 
 
 
-def lal_binary_black_hole_horizon( frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
-                        phi_12, a_2, tilt_2, phi_jl, theta_jn, phase, H_eff5, H_eff8, **kwargs):
+def lal_binary_black_hole_horizon(
+        frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
+        phi_12, a_2, tilt_2, phi_jl, theta_jn, phase, H_eff5, H_eff8, **kwargs):
 
     """ Phase correction to the horizon parameters are added to a Binary Black Hole waveform model using lalsimulation
 
@@ -179,12 +180,13 @@ def lal_binary_black_hole_horizon( frequency_array, mass_1, mass_2, luminosity_d
     -------
     dict: A dictionary with the plus and cross polarisation strain modes
     """
-    waveform_kwargs = dict( waveform_approximant='TaylorF2', reference_frequency=50.0,
-        minimum_frequency=20.0, maximum_frequency=frequency_array[-1],
-        pn_spin_order=-1, pn_tidal_order=-1, pn_phase_order=-1, pn_amplitude_order=0)
+    waveform_kwargs = dict(
+            waveform_approximant='TaylorF2', reference_frequency=50.0,
+            minimum_frequency=20.0, maximum_frequency=frequency_array[-1],
+            pn_spin_order=-1, pn_tidal_order=-1, pn_phase_order=-1, pn_amplitude_order=0)
     
     waveform_kwargs.update(kwargs)
-
+    
     waveform_polarization_dict = _base_lal_cbc_fd_waveform(
         frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
         luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
