@@ -27,27 +27,27 @@ def phase_TH(
     #if mass_1 < mass_2:
     #    return None
     import lal
-    mass_1=mass_1 #utils.solar_mass #.MSUN_SI
-    mass_2=mass_2 #/lal.MSUN_SI
-    m=mass_1 + mass_2
-    eta=mass_1 * mass_2 / m**2
+    mass_1 = mass_1 #utils.solar_mass #.MSUN_SI
+    mass_2 = mass_2 #/lal.MSUN_SI
+    m = mass_1 + mass_2
+    eta = mass_1 * mass_2 / m**2
     #delta = -(1 - 4*eta)**(1/2)
     #chi_s = (a_1 + a_2)/2
     #chi_a = (a_1 - a_2)/2
-    deltaF=frequency_array[1] - frequency_array[0]#delta_frequency
-    minIndx=int(minimum_frequency / deltaF)
-    frequency_array_effective=frequency_array[minIndx:]
+    deltaF = frequency_array[1] - frequency_array[0]#delta_frequency
+    minIndx = int(minimum_frequency / deltaF)
+    frequency_array_effective = frequency_array[minIndx:]
     #v = np.cbrt( np.pi * utils.   )
     v =  np.cbrt(lal.PI * lal.G_SI * m * lal.MSUN_SI * frequency_array_effective) / lal.C_SI
-    phase_term1=3.0 / (128.0 * eta * v**5)
+    phase_term1 = 3.0 / (128.0 * eta * v**5)
     # 3.5 PN term
-    term_v7=5 * v**7 * (952 * eta + 995) / 168.0 * H_eff5
+    term_v7 = 5 * v**7 * (952 * eta + 995) / 168.0 * H_eff5
     # 2.5 PN term                                                                             
-    term_v5=10 * v**5*(3 * np.log(v) + 1) / 9. * H_eff5
+    term_v5 = 10 * v**5*(3 * np.log(v) + 1) / 9. * H_eff5
     # 4PN term
-    term_v8=20 * v**8 * (3 * np.log(v)-1) / 9.0 * H_eff8
-    delta_phase=phase_term1*(term_v5 + term_v7 + term_v8)
-    delta_phase=np.concatenate((np.zeros(minIndx), delta_phase))
+    term_v8 = 20 * v**8 * (3 * np.log(v) - 1) / 9.0 * H_eff8
+    delta_phase = phase_term1 * (term_v5 + term_v7 + term_v8)
+    delta_phase = np.concatenate((np.zeros(minIndx), delta_phase))
     return delta_phase
 
 
