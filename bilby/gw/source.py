@@ -184,8 +184,7 @@ def lal_binary_black_hole_horizon( frequency_array, mass_1, mass_2, luminosity_d
         pn_spin_order=-1, pn_tidal_order=-1, pn_phase_order=-1, pn_amplitude_order=0 )
     
     waveform_kwargs.update(kwargs)
-    
-    
+
     waveform_polarization_dict = _base_lal_cbc_fd_waveform(
         frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
         luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
