@@ -181,7 +181,7 @@ def lal_binary_black_hole_horizon( frequency_array, mass_1, mass_2, luminosity_d
     """
     waveform_kwargs = dict( waveform_approximant='TaylorF2', reference_frequency=50.0,
         minimum_frequency=20.0, maximum_frequency=frequency_array[-1],
-        pn_spin_order=-1, pn_tidal_order=-1, pn_phase_order=-1, pn_amplitude_order=0 )
+        pn_spin_order=-1, pn_tidal_order=-1, pn_phase_order=-1, pn_amplitude_order=0)
     
     waveform_kwargs.update(kwargs)
 
@@ -193,7 +193,7 @@ def lal_binary_black_hole_horizon( frequency_array, mass_1, mass_2, luminosity_d
     # tidal heating phase
     tidal_heating_phase = phase_TH(
         frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
-        H_eff5=H_eff5, H_eff8=H_eff8, minimum_frequency=waveform_kwargs['minimum_frequency'] )
+        H_eff5=H_eff5, H_eff8=H_eff8, minimum_frequency=waveform_kwargs['minimum_frequency'])
 
     h_plus_horizon = waveform_polarization_dict['plus']*(np.cos(tidal_heating_phase) - 1j* np.sin(tidal_heating_phase))
     h_cross_horizon = waveform_polarization_dict['cross']*(np.cos(tidal_heating_phase) - 1j*np.sin(tidal_heating_phase))
