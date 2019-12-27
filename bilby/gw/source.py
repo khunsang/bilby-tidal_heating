@@ -20,6 +20,42 @@ except ImportError:
                    " not be able to use some of the prebuilt functions.")
 
 
+def phase_TH( frequency_array, mass_1, mass_2, H_eff5, H_eff8,
+                                minimum_frequency = 20 ):
+
+    ''' Phase correction due to tidal heating'''
+    
+    #if mass_1 < mass_2:
+            #    return None
+
+    import lal
+    mass_1 = mass_1 #utils.solar_mass #.MSUN_SI
+    mass_2 = mass_2 #/lal.MSUN_SI
+    m = mass_1 + mass_2
+    eta = mass_1*mass_2/m**2
+    #delta = -(1 - 4*eta)**(1/2)
+    #chi_s = (a_1 + a_2)/2
+    #chi_a = (a_1 - a_2)/2
+    deltaF = frequency_array[1] - frequency_array[0]  #delta_frequency
+    
+    minIndx = int(minimum_frequency/deltaF)
+    frequency_array_effective = frequency_array[minIndx:]
+    #v = np.cbrt( np.pi * utils.   )
+    v =  np.cbrt( lal.PI*lal.G_SI*m*lal.MSUN_SI*frequency_array_effective )/lal.C_SI
+    
+    phase_term1 = ( 3.0)/ (128.0 * eta * v**5 )
+    # 3.5 PN term
+    term_v7 = 5*v**7*( 952 * eta + 995 )/( 168.0)* H_eff5
+    # 2.5 PN term                                                                             
+    term_v5 = 10*v**5*(3* np.log(v)+ 1 )/(9.)*H_eff5
+    # 4PN term
+    term_v8 = 20*v**8*(3*np.log(v)-1)/(9.0)*H_eff8
+    delta_phase = phase_term1*( term_v5 + term_v7 + term_v8)
+    delta_phase = np.concatenate((np.zeros(minIndx), delta_phase))
+    return delta_phase
+
+    
+    
 def lal_binary_black_hole(
         frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
         phi_12, a_2, tilt_2, phi_jl, theta_jn, phase, **kwargs):
@@ -97,6 +133,74 @@ def lal_binary_black_hole(
         luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
         a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
         phi_jl=phi_jl, **waveform_kwargs)
+
+
+
+def lal_binary_black_hole_horizon( frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
+                        phi_12, a_2, tilt_2, phi_jl, theta_jn, phase, H_eff5, H_eff8, **kwargs):
+
+    """ Phase correction to the horizon parameters are added to a Binary Black Hole waveform model using lalsimulation
+
+    Parameters
+    ----------
+    frequency_array: array_like
+    The frequencies at which we want to calculate the strain
+    mass_1: float
+    The mass of the heavier object in solar masses
+    mass_2: float
+    The mass of the lighter object in solar masses
+    luminosity_distance: float
+    The luminosity distance in megaparsec
+    a_1: float
+    Dimensionless primary spin magnitude
+    tilt_1: float
+    Primary tilt angle
+    phi_12: float
+    Azimuthal angle between the two component spins
+    a_2: float
+    Dimensionless secondary spin magnitude
+    tilt_2: float
+    Secondary tilt angle
+    phi_jl: float
+    Azimuthal angle between the total binary angular momentum and the
+    orbital angular momentum
+    theta_jn: float
+    Angle between the total binary angular momentum and the line of sight
+    phase: float
+    The phase at coalescence
+    H_eff5: float
+    2.5 PN order horizon parameter
+    H_eff8: float
+    4 PN order horizon parameter
+    kwargs: dict
+    Optional keyword arguments
+
+    Returns
+    -------
+    dict: A dictionary with the plus and cross polarisation strain modes
+    """
+    waveform_kwargs = dict( waveform_approximant='TaylorF2', reference_frequency=50.0,
+            minimum_frequency=20.0, maximum_frequency=frequency_array[-1],
+            pn_spin_order=-1, pn_tidal_order=-1, pn_phase_order=-1, pn_amplitude_order=0 )
+    
+    waveform_kwargs.update(kwargs)
+    
+    
+    waveform_polarization_dict = _base_lal_cbc_fd_waveform(
+            frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
+            luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
+            a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
+            phi_jl=phi_jl, **waveform_kwargs)
+
+
+    tidal_heating_phase = phase_TH(
+            frequency_array=frequency_array, mass_1 = mass_1, mass_2 = mass_2,
+            H_eff5 = H_eff5, H_eff8 = H_eff8, minimum_frequency = waveform_kwargs['minimum_frequency'] )
+
+    h_plus_horizon = waveform_polarization_dict['plus']*(np.cos(tidal_heating_phase) - 1j* np.sin(tidal_heating_phase))
+    h_cross_horizon = waveform_polarization_dict['cross']*(np.cos(tidal_heating_phase) - 1j*np.sin(tidal_heating_phase))
+    
+    return dict(plus=h_plus_horizon, cross=h_cross_horizon)
 
 
 def lal_binary_neutron_star(
