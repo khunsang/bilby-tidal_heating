@@ -22,7 +22,7 @@ except ImportError:
 
 def phase_TH(
         frequency_array, mass_1, mass_2, H_eff5, H_eff8,
-        minimum_frequency = 20):
+        minimum_frequency=20):
     """ Phase correction due to tidal heating
     """
     # if mass_1 < mass_2:
