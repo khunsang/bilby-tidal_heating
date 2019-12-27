@@ -191,12 +191,12 @@ def lal_binary_black_hole_horizon(
         a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
         phi_jl=phi_jl, **waveform_kwargs)
     # tidal heating phase
-    tidal_heating_phase = phase_TH(
+    heated_phase = phase_TH(
         frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
         H_eff5=H_eff5, H_eff8=H_eff8, minimum_frequency=waveform_kwargs['minimum_frequency'])
 
-    h_plus_horizon = waveform_polarization_dict['plus'] * (np.cos(tidal_heating_phase) - 1j * np.sin(tidal_heating_phase))
-    h_cross_horizon = waveform_polarization_dict['cross'] * (np.cos(tidal_heating_phase) - 1j * np.sin(tidal_heating_phase))
+    h_plus_horizon = waveform_polarization_dict['plus'] * (np.cos(heated_phase) - 1j * np.sin(heated_phase))
+    h_cross_horizon = waveform_polarization_dict['cross'] * (np.cos(heated_phase) - 1j * np.sin(heated_phase))
 
     return dict(plus=h_plus_horizon, cross=h_cross_horizon)
 
