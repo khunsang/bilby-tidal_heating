@@ -272,6 +272,74 @@ def lal_binary_neutron_star(
         a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
         phi_jl=phi_jl, lambda_1=lambda_1, lambda_2=lambda_2, **waveform_kwargs)
 
+    
+def lal_binary_bbh_bns_horizon(
+        frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
+        phi_12, a_2, tilt_2, phi_jl, theta_jn, phase, lambda_1, lambda_2,
+        H_eff5, H_eff8, **kwargs):
+
+    """ Phase correction to the horizon parameters and tidal corrections are added to a CBC waveform model using lalsimulation
+
+    Parameters
+    ----------
+    frequency_array: array_like
+    The frequencies at which we want to calculate the strain
+    mass_1: float
+    The mass of the heavier object in solar masses
+    mass_2: float
+    The mass of the lighter object in solar masses
+    luminosity_distance: float
+    The luminosity distance in megaparsec
+    a_1: float
+    Dimensionless primary spin magnitude
+    tilt_1: float
+    Primary tilt angle
+    phi_12: float
+    Azimuthal angle between the two component spins
+    a_2: float
+    Dimensionless secondary spin magnitude
+    tilt_2: float
+    Secondary tilt angle
+    phi_jl: float
+    Azimuthal angle between the total binary angular momentum and the
+    orbital angular momentum
+    theta_jn: float
+    Angle between the total binary angular momentum and the line of sight
+    phase: float
+    The phase at coalescence
+    lambda_1: float
+    Dimensional tidal deformalibilty of mass_1
+    lambda_2 : float
+    Dimensional tidal deformability of mass_2
+    H_eff5: float
+    2.5 PN order horizon parameter
+    H_eff8: float
+    4 PN order horizon parameter
+    kwargs: dict
+    Optional keyword arguments
+
+    Returns
+    -------
+    dict: A dictionary with the plus and cross polarisation strain modes
+    """
+    waveform_kwargs = dict(
+        waveform_approximant='TaylorF2', reference_frequency=50.0,
+        minimum_frequency=20.0, maximum_frequency=frequency_array[-1],
+        pn_spin_order=-1, pn_tidal_order=-1, pn_phase_order=-1, pn_amplitude_order=0)
+    waveform_kwargs.update(kwargs)
+    waveform_polarization_dict = _base_lal_cbc_fd_waveform(
+        frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
+        luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
+        a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
+        phi_jl=phi_jl, lambda_1=lambda_1, lambda_2=lambda_2, **waveform_kwargs)
+    # tidal heating phase
+    heated_phase = phase_TH(
+        frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
+        H_eff5=H_eff5, H_eff8=H_eff8, minimum_frequency=waveform_kwargs['minimum_frequency'])
+    h_plus_horizon = waveform_polarization_dict['plus'] * (np.cos(heated_phase) - 1j * np.sin(heated_phase))
+    h_cross_horizon = waveform_polarization_dict['cross'] * (np.cos(heated_phase) - 1j * np.sin(heated_phase))
+    return dict(plus=h_plus_horizon, cross=h_cross_horizon)
+
 
 def lal_eccentric_binary_black_hole_no_spins(
         frequency_array, mass_1, mass_2, eccentricity, luminosity_distance,
