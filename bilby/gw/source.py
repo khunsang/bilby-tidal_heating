@@ -274,8 +274,7 @@ def lal_binary_bbh_bns_horizon(
         frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
         phi_12, a_2, tilt_2, phi_jl, theta_jn, phase, lambda_1, lambda_2,
         H_eff5, H_eff8, **kwargs):
-
-    """ Phase correction to the horizon parameters and tidal corrections 
+    """ Phase correction to the horizon parameters and tidal corrections
     are added to a CBC waveform model using lalsimulation
 
     Parameters
