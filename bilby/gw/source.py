@@ -321,7 +321,8 @@ def lal_binary_bbh_bns_horizon(
     waveform_kwargs = dict(
         waveform_approximant='TaylorF2', reference_frequency=50.0,
         minimum_frequency=20.0, maximum_frequency=frequency_array[-1],
-        pn_spin_order=-1, pn_tidal_order=-1, pn_phase_order=-1, pn_amplitude_order=0)
+        pn_spin_order=-1, pn_tidal_order=-1, pn_phase_order=-1,
+        pn_amplitude_order=0)
     waveform_kwargs.update(kwargs)
     waveform_polarization_dict = _base_lal_cbc_fd_waveform(
         frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
