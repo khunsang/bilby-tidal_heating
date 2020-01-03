@@ -50,7 +50,7 @@ def phase_TH(
 
 def lal_binary_black_hole(
         frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
-        phi_12, a_2, tilt_2, phi_jl, theta_jn, phase, **kwargs):
+        phi_12, a_2, tilt_2, phi_jl, theta_jn, H_eff5, H_eff8, phase, **kwargs):
     """ A Binary Black Hole waveform model using lalsimulation
 
     Parameters
@@ -120,11 +120,26 @@ def lal_binary_black_hole(
         catch_waveform_errors=False, pn_spin_order=-1, pn_tidal_order=-1,
         pn_phase_order=-1, pn_amplitude_order=0)
     waveform_kwargs.update(kwargs)
-    return _base_lal_cbc_fd_waveform(
-        frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
-        luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
-        a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
-        phi_jl=phi_jl, **waveform_kwargs)
+
+    if waveform_kwargs['waveform_approximant'] == 'HeatedTaylorF2':
+        waveform_kwargs['waveform_approximant'] = 'TaylorF2'
+        heated_phase = phase_TH(
+                frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
+                H_eff5=H_eff5, H_eff8=H_eff8, minimum_frequency=waveform_kwargs['minimum_frequency'])
+        waveform_polarization_dict = _base_lal_cbc_fd_waveform(
+                frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
+                luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
+                a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
+                phi_jl=phi_jl, **waveform_kwargs)
+        h_plus_horizon = waveform_polarization_dict['plus'] * (np.cos(heated_phase) - 1j * np.sin(heated_phase))
+        h_cross_horizon = waveform_polarization_dict['cross'] * (np.cos(heated_phase) - 1j * np.sin(heated_phase))
+        return dict(plus=h_plus_horizon, cross=h_cross_horizon)
+    else:
+        return _base_lal_cbc_fd_waveform(
+            frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
+            luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
+            a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
+            phi_jl=phi_jl, **waveform_kwargs)
 
 
 def lal_binary_black_hole_horizon(
@@ -193,7 +208,7 @@ def lal_binary_black_hole_horizon(
 def lal_binary_neutron_star(
         frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
         phi_12, a_2, tilt_2, phi_jl, theta_jn, phase, lambda_1, lambda_2,
-        **kwargs):
+        H_eff5, H_eff8, **kwargs):
     """ A Binary Neutron Star waveform model using lalsimulation
 
     Parameters
@@ -266,11 +281,25 @@ def lal_binary_neutron_star(
         catch_waveform_errors=False, pn_spin_order=-1, pn_tidal_order=-1,
         pn_phase_order=-1, pn_amplitude_order=0)
     waveform_kwargs.update(kwargs)
-    return _base_lal_cbc_fd_waveform(
-        frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
-        luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
-        a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
-        phi_jl=phi_jl, lambda_1=lambda_1, lambda_2=lambda_2, **waveform_kwargs)
+    if waveform_kwargs['waveform_approximant'] == 'HeatedTaylorF2':
+        waveform_kwargs['waveform_approximant'] = 'TaylorF2'
+        heated_phase = phase_TH(
+                frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
+                H_eff5=H_eff5, H_eff8=H_eff8, minimum_frequency=waveform_kwargs['minimum_frequency'])
+        waveform_polarization_dict = _base_lal_cbc_fd_waveform(
+                frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
+                luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
+                a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
+                phi_jl=phi_jl, lambda_1=lambda_1, lambda_2=lambda_2, **waveform_kwargs)
+        h_plus_horizon = waveform_polarization_dict['plus'] * (np.cos(heated_phase) - 1j * np.sin(heated_phase))
+        h_cross_horizon = waveform_polarization_dict['cross'] * (np.cos(heated_phase) - 1j * np.sin(heated_phase))
+        return dict(plus=h_plus_horizon, cross=h_cross_horizon)
+    else:
+        return _base_lal_cbc_fd_waveform(
+                frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
+                luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
+                a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
+                phi_jl=phi_jl, lambda_1=lambda_1, lambda_2=lambda_2, **waveform_kwargs)
 
 
 def lal_binary_bbh_bns_horizon(
