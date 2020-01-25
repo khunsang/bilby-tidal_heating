@@ -75,8 +75,8 @@ def phase_TH(
     LdotS1 = spin_1z * 1
     LdotS2 = spin_2z * 1
     # spin-orbit interaction term
-    Psi_SO = 1. / 6. * ((- 56 * eta - 73 * ( np.sqrt(1 - 4 * eta) - 1) ) * LdotS1 * a_1 +
-        ( - 56 * eta - 73 * ( np.sqrt(1 - 4 * eta) - 1) ) * LdotS2 * a_2 )
+    Psi_SO = 1. / 6. * ((- 56 * eta - 73 * ( np.sqrt(1 - 4 * eta) - 1)) * LdotS1 * a_1 +
+        (- 56 * eta - 73 * (np.sqrt(1 - 4 * eta) - 1)) * LdotS2 * a_2)
     # 4PN term
     term_v8 = 5 * v**8 * (3 * np.log(v) - 1) / 9.0 * (H_eff5 * Psi_SO - 4 * H_eff8)
     delta_phase = phase_term1 * (term_v5 + term_v7 + term_v8)
