@@ -24,7 +24,7 @@ def phase_TH_old(
         frequency_array, mass_1, mass_2, H_eff5, H_eff8,
         minimum_frequency=20):
     """ Phase correction due to tidal heating
-        The spin-orbit interaction terms are missing plus issues with 
+        The spin-orbit interaction terms are missing plus issues with
         positive-negative sign
     """
     # if mass_1 < mass_2:
@@ -59,8 +59,8 @@ def phase_TH(
     # if mass_1 < mass_2:
     # return None
     # mass_1 and mass_2 are in Solar Mass
-    # 
-    #import lal
+    #
+    # import lal
     m = mass_1 + mass_2
     eta = mass_1 * mass_2 / m**2
     minIndx = int(start_frequency / delta_frequency)
@@ -75,8 +75,8 @@ def phase_TH(
     LdotS1 = spin_1z * 1
     LdotS2 = spin_2z * 1
     # spin-orbit interaction term
-    Psi_SO = 1. / 6. * ((- 56 * eta - 73 * ( np.sqrt(1 - 4 * eta) - 1)) * LdotS1 * a_1 +
-        (- 56 * eta - 73 * (np.sqrt(1 - 4 * eta) - 1)) * LdotS2 * a_2)
+    Psi_SO = 1. / 6. * ((- 56 * eta - 73 * (np.sqrt(1 - 4 * eta) - 1)) * LdotS1 * a_1 +
+            (- 56 * eta - 73 * (np.sqrt(1 - 4 * eta) - 1)) * LdotS2 * a_2)
     # 4PN term
     term_v8 = 5 * v**8 * (3 * np.log(v) - 1) / 9.0 * (H_eff5 * Psi_SO - 4 * H_eff8)
     delta_phase = phase_term1 * (term_v5 + term_v7 + term_v8)
@@ -476,7 +476,7 @@ def _base_lal_cbc_fd_waveform(
     -------
     dict: A dictionary with the plus and cross polarisation strain modes
     """
-    if waveform_kwargs['waveform_approximant']=="HeatedTaylorF2":
+    if waveform_kwargs['waveform_approximant'] == "HeatedTaylorF2":
         waveform_approximant = "TaylorF2"
     else:
         waveform_approximant = waveform_kwargs['waveform_approximant']
@@ -557,7 +557,7 @@ def _base_lal_cbc_fd_waveform(
             heated_phase = phase_TH(
                 frequency_array, mass_1, mass_2, a_1, a_2, spin_1x, spin_1y, spin_1z,
                 spin_2x, spin_2y, spin_2z, H_eff5, H_eff8, start_frequency, delta_frequency)
-            
+
             expo_heated_phase = (np.cos(heated_phase) - 1j * np.sin(heated_phase))
             hplus.data.data[:] = hplus.data.data * expo_heated_phase
             hcross.data.data[:] = hcross.data.data * expo_heated_phase
