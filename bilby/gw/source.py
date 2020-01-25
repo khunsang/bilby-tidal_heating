@@ -75,8 +75,8 @@ def phase_TH(
     LdotS1 = spin_1z * 1
     LdotS2 = spin_2z * 1
     # spin-orbit interaction term
-    Psi_SO = 1. / 6. * ((- 56 * eta - 73 * ( np.sqrt(1 - 4 * eta) - 1) ) * LdotS1 * a_1
-        + ( - 56 * eta - 73 * ( np.sqrt(1 - 4 * eta) - 1) ) * LdotS2 * a_2 )
+    Psi_SO = 1. / 6. * ((- 56 * eta - 73 * ( np.sqrt(1 - 4 * eta) - 1) ) * LdotS1 * a_1 +
+        ( - 56 * eta - 73 * ( np.sqrt(1 - 4 * eta) - 1) ) * LdotS2 * a_2 )
     # 4PN term
     term_v8 = 5 * v**8 * (3 * np.log(v) - 1) / 9.0 * (H_eff5 * Psi_SO - 4 * H_eff8)
     delta_phase = phase_term1 * (term_v5 + term_v7 + term_v8)
@@ -353,7 +353,7 @@ def lal_binary_neutron_star_tidal_heating(
     waveform_kwargs = dict(
         waveform_approximant='HeatedTaylorF2', reference_frequency=50.0,
         minimum_frequency=20.0, maximum_frequency=frequency_array[-1],
-        catch_waveform_errors=False, pn_spin_order=-1, pn_tidal_order=-1, 
+        catch_waveform_errors=False, pn_spin_order=-1, pn_tidal_order=-1,
         pn_phase_order=-1, pn_amplitude_order=0)
     waveform_kwargs.update(kwargs)
     return _base_lal_cbc_fd_waveform(
@@ -540,7 +540,7 @@ def _base_lal_cbc_fd_waveform(
     else:
         wf_func = lalsim_SimInspiralFD
     try:
-        if waveform_kwargs['waveform_approximant']!="HeatedTaylorF2":
+        if waveform_kwargs['waveform_approximant'] != "HeatedTaylorF2":
             hplus, hcross = wf_func(
                 mass_1, mass_2, spin_1x, spin_1y, spin_1z, spin_2x, spin_2y,
                 spin_2z, luminosity_distance, iota, phase,
@@ -557,7 +557,7 @@ def _base_lal_cbc_fd_waveform(
             heated_phase = phase_TH(
                 frequency_array, mass_1, mass_2, a_1, a_2, spin_1x, spin_1y, spin_1z,
                 spin_2x, spin_2y, spin_2z, H_eff5, H_eff8, start_frequency, delta_frequency)
-    
+            
             expo_heated_phase = (np.cos(heated_phase) - 1j * np.sin(heated_phase))
             hplus.data.data[:] = hplus.data.data * expo_heated_phase
             hcross.data.data[:] = hcross.data.data * expo_heated_phase
