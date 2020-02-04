@@ -572,8 +572,8 @@ def _base_lal_cbc_fd_waveform(
                 frequency_array, mass_1, mass_2, a_1, a_2, spin_1x, spin_1y, spin_1z,
                 spin_2x, spin_2y, spin_2z, H_eff5, H_eff8, start_frequency, delta_frequency)
             expo_heated_phase = (np.cos(heated_phase) - 1j * np.sin(heated_phase))
-            hplus.data.data[:] = hplus.data.data * expo_heated_phase
-            hcross.data.data[:] = hcross.data.data * expo_heated_phase
+            hplus.data.data[:] = hplus.data.data * expo_heated_phase[:hplus.data.length]
+            hcross.data.data[:] = hcross.data.data * expo_heated_phase[:hplus.data.length]
     except Exception as e:
         if not catch_waveform_errors:
             raise
