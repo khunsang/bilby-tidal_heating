@@ -79,6 +79,11 @@ def phase_TH(
     return delta_phase
 
 
+def ISCO(m1, m2):
+    "masses in solar mass unit"
+    return 1.0 / (6.0 * np.sqrt(6.0) * np.pi * (m1 + m2) * lal.MTSUN_SI)
+
+
 def lal_binary_black_hole(
         frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
         phi_12, a_2, tilt_2, phi_jl, theta_jn, phase, **kwargs):
