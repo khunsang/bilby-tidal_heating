@@ -156,6 +156,9 @@ def lal_binary_black_hole(
         catch_waveform_errors=False, pn_spin_order=-1, pn_tidal_order=-1,
         pn_phase_order=-1, pn_amplitude_order=0)
     waveform_kwargs.update(kwargs)
+    if waveform_kwargs['waveform_approximant'] == 'TaylorF2':
+        f_isco = ISCO(mass_1, mass_2)
+        waveform_kwargs.update(maximum_frequency=f_isco)
     return _base_lal_cbc_fd_waveform(
         frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
         luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
@@ -213,6 +216,10 @@ def lal_binary_black_hole_tidal_heating(
         catch_waveform_errors=False, pn_spin_order=-1, pn_tidal_order=-1,
         pn_phase_order=-1, pn_amplitude_order=0)
     waveform_kwargs.update(kwargs)
+    approx = waveform_kwargs['waveform_approximant']
+    if approx == 'TaylorF2' or approx == 'HeatedTaylorF2':
+        f_isco = ISCO(mass_1, mass_2)
+        waveform_kwargs.update(maximum_frequency=f_isco)
     return _base_lal_cbc_fd_waveform(
         frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
         luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
@@ -295,6 +302,9 @@ def lal_binary_neutron_star(
         catch_waveform_errors=False, pn_spin_order=-1, pn_tidal_order=-1,
         pn_phase_order=-1, pn_amplitude_order=0)
     waveform_kwargs.update(kwargs)
+    if waveform_kwargs['waveform_approximant'] == 'TaylorF2':
+        f_isco = ISCO(mass_1, mass_2)
+        waveform_kwargs.update(maximum_frequency=f_isco)
     return _base_lal_cbc_fd_waveform(
         frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
         luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
@@ -356,6 +366,10 @@ def lal_binary_neutron_star_tidal_heating(
         catch_waveform_errors=False, pn_spin_order=-1, pn_tidal_order=-1,
         pn_phase_order=-1, pn_amplitude_order=0)
     waveform_kwargs.update(kwargs)
+    approx = waveform_kwargs['waveform_approximant']
+    if approx == 'TaylorF2' or approx == 'HeatedTaylorF2':
+        f_isco = ISCO(mass_1, mass_2)
+        waveform_kwargs.update(maximum_frequency=f_isco)
     return _base_lal_cbc_fd_waveform(
         frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
         luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
