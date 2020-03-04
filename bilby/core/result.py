@@ -304,6 +304,10 @@ class Result(object):
             else:
                 self._priors = PriorDict(priors)
             if self.parameter_labels is None:
+                if 'H_eff5' in self.search_parameter_keys:
+                    self.priors['H_eff5'].latex_label = '$H_{eff5}$'
+                if 'H_eff8' in self.search_parameter_keys:
+                    self.priors['H_eff8'].latex_label = '$H_{eff8}$'
                 self.parameter_labels = [self.priors[k].latex_label for k in
                                          self.search_parameter_keys]
             if self.parameter_labels_with_unit is None:
