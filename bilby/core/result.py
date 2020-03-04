@@ -1610,7 +1610,7 @@ def make_pp_plot(results, filename=None, save=True, confidence_interval=0.9,
             name='$H_{eff5}$'
         if name=='H_eff8':
             name ='H_{eff8}'
-        print ('name:'name)
+        print ('name:',name)
         label = "{} ({:2.3f})".format(name, pvalue)
         plt.plot(x_values, pp, lines[ii], label=label, **kwargs)
 
