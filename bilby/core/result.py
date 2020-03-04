@@ -1607,9 +1607,9 @@ def make_pp_plot(results, filename=None, save=True, confidence_interval=0.9,
         except AttributeError:
             name = key
         if name=='H_eff5':
-            name='$H_{eff5}$'
+            name='$H_{\\textrm{eff}5}$'
         if name=='H_eff8':
-            name ='H_{eff8}'
+            name ='H_{\\textrm{eff}8}'
         print ('name:',name)
         label = "{} ({:2.3f})".format(name, pvalue)
         plt.plot(x_values, pp, lines[ii], label=label, **kwargs)
