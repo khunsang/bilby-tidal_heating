@@ -1613,7 +1613,7 @@ def make_pp_plot(results, filename=None, save=True, confidence_interval=0.9,
         if name == 'H_eff5':
             name = '$H_{\\textrm{eff}5}$'
         if name == 'H_eff8':
-            name ='$H_{\\textrm{eff}8}$'
+            name = '$H_{\\textrm{eff}8}$'
         if name == 'chi_1':
             name = '$\\chi_1$'
         if name == 'chi_2':
