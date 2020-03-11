@@ -305,9 +305,9 @@ class Result(object):
                 self._priors = PriorDict(priors)
             if self.parameter_labels is None:
                 if 'H_eff5' in self.search_parameter_keys:
-                    self.priors['H_eff5'].latex_label = '$H_{\\textrm{eff}5}$'
+                    self.priors['H_eff5'].latex_label = '$H_{eff5}$'
                 if 'H_eff8' in self.search_parameter_keys:
-                    self.priors['H_eff8'].latex_label = '$H_{\\textrm{eff}8}$'
+                    self.priors['H_eff8'].latex_label = '$H_{eff8}$'
                 if 'chi_1' in self.search_parameter_keys:
                     self.priors['chi_1'].latex_label = '$\\chi_1$'
                 if 'chi_2' in self.search_parameter_keys:
@@ -1611,9 +1611,9 @@ def make_pp_plot(results, filename=None, save=True, confidence_interval=0.9,
         except AttributeError:
             name = key
         if name == 'H_eff5':
-            name = '$H_{\\textrm{eff}5}$'
+            name = '$H_{eff5}$'
         if name == 'H_eff8':
-            name = '$H_{\\textrm{eff}8}$'
+            name = '$H_{eff8}$'
         if name == 'chi_1':
             name = '$\\chi_1$'
         if name == 'chi_2':
