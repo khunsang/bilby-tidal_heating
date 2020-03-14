@@ -112,14 +112,14 @@ class TestCPNest(unittest.TestCase):
         del self.sampler
 
     def test_default_kwargs(self):
-        expected = dict(verbose=1, nthreads=1, nlive=500, maxmcmc=1000,
+        expected = dict(verbose=3, nthreads=1, nlive=500, maxmcmc=1000,
                         seed=None, poolsize=100, nhamiltonian=0, resume=True,
                         output='outdir/cpnest_label/', proposals=None,
                         n_periodic_checkpoint=8000)
         self.assertDictEqual(expected, self.sampler.kwargs)
 
     def test_translate_kwargs(self):
-        expected = dict(verbose=1, nthreads=1, nlive=250, maxmcmc=1000,
+        expected = dict(verbose=3, nthreads=1, nlive=250, maxmcmc=1000,
                         seed=None, poolsize=100, nhamiltonian=0, resume=True,
                         output='outdir/cpnest_label/', proposals=None,
                         n_periodic_checkpoint=8000)
@@ -552,7 +552,8 @@ class TestRunningSamplers(unittest.TestCase):
     def test_run_dynamic_dynesty(self):
         _ = bilby.run_sampler(
             likelihood=self.likelihood, priors=self.priors, sampler='dynamic_dynesty',
-            nlive=100, save=False)
+            nlive_init=100, nlive_batch=100, dlogz_init=1.0, maxbatch=0,
+            maxcall=100, bound="single", save=False)
 
     def test_run_emcee(self):
         _ = bilby.run_sampler(
