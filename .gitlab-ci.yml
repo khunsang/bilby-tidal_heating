@@ -66,6 +66,15 @@ python-3.7:
       - coverage_badge.svg
       - docs/_build/html/
 
+# test example on python 3.8
+python-3.8:
+  stage: test
+  image: bilbydev/v2-dockerfile-test-suite-python38
+  script:
+    - python -m pip install .
+
+    - pytest
+
 # test example on python 3.6
 python-3.6:
   stage: test
@@ -83,6 +92,7 @@ python-3.7-samplers:
     - python -m pip install .
 
     - pytest test/sampler_test.py --durations 10
+    - pytest test/sample_from_the_prior_test.py
 
 # test samplers on python 3.6
 python-3.6-samplers:
@@ -106,6 +116,17 @@ scheduled-python-3.7:
     - pytest test/example_test.py
     - pytest test/gw_example_test.py
     - pytest test/sample_from_the_prior_test.py
+
+plotting:
+  stage: test
+  image: bilbydev/bilby-test-suite-python37
+  only:
+    - schedules
+  script:
+    - python -m pip install .
+    - python -m pip install ligo.skymap
+
+    - pytest test/gw_plot_test.py
 
 pages:
   stage: deploy

@@ -151,7 +151,7 @@ class TestDynesty(unittest.TestCase):
     def test_default_kwargs(self):
         expected = dict(bound='multi', sample='rwalk', periodic=None, reflective=None, verbose=True,
                         check_point_delta_t=600, nlive=1000, first_update=None,
-                        npdim=None, rstate=None, queue_size=None, pool=None,
+                        npdim=None, rstate=None, queue_size=1, pool=None,
                         use_pool=None, live_points=None, logl_args=None, logl_kwargs=None,
                         ptform_args=None, ptform_kwargs=None,
                         enlarge=1.5, bootstrap=None, vol_dec=0.5, vol_check=8.0,
@@ -173,7 +173,7 @@ class TestDynesty(unittest.TestCase):
     def test_translate_kwargs(self):
         expected = dict(bound='multi', sample='rwalk', periodic=[], reflective=[], verbose=True,
                         check_point_delta_t=600, nlive=1000, first_update=None,
-                        npdim=None, rstate=None, queue_size=None, pool=None,
+                        npdim=None, rstate=None, queue_size=1, pool=None,
                         use_pool=None, live_points=None, logl_args=None, logl_kwargs=None,
                         ptform_args=None, ptform_kwargs=None,
                         enlarge=1.5, bootstrap=None, vol_dec=0.5, vol_check=8.0,
@@ -387,33 +387,19 @@ class TestPTEmcee(unittest.TestCase):
         del self.sampler
 
     def test_default_kwargs(self):
-        expected = dict(ntemps=2, nwalkers=500,
-                        Tmax=None, betas=None,
-                        threads=1, pool=None, a=2.0,
-                        loglargs=[], logpargs=[],
-                        loglkwargs={}, logpkwargs={},
-                        adaptation_lag=10000, adaptation_time=100,
-                        random=None, iterations=100, thin=1,
-                        storechain=True, adapt=True,
-                        swap_ratios=False,
-                        )
+        expected = dict(ntemps=20, nwalkers=200, Tmax=None, betas=None, a=2.0,
+                        adaptation_lag=10000, adaptation_time=100, random=None,
+                        adapt=True, swap_ratios=False,)
         self.assertDictEqual(expected, self.sampler.kwargs)
 
     def test_translate_kwargs(self):
-        expected = dict(ntemps=2, nwalkers=150,
-                        Tmax=None, betas=None,
-                        threads=1, pool=None, a=2.0,
-                        loglargs=[], logpargs=[],
-                        loglkwargs={}, logpkwargs={},
-                        adaptation_lag=10000, adaptation_time=100,
-                        random=None, iterations=100, thin=1,
-                        storechain=True, adapt=True,
-                        swap_ratios=False,
-                        )
+        expected = dict(ntemps=20, nwalkers=200, Tmax=None, betas=None, a=2.0,
+                        adaptation_lag=10000, adaptation_time=100, random=None,
+                        adapt=True, swap_ratios=False,)
         for equiv in bilby.core.sampler.base_sampler.MCMCSampler.nwalkers_equiv_kwargs:
             new_kwargs = self.sampler.kwargs.copy()
             del new_kwargs['nwalkers']
-            new_kwargs[equiv] = 150
+            new_kwargs[equiv] = 200
             self.sampler.kwargs = new_kwargs
             self.assertDictEqual(expected, self.sampler.kwargs)
 
@@ -480,7 +466,6 @@ class TestPymultinest(unittest.TestCase):
     def test_default_kwargs(self):
         expected = dict(importance_nested_sampling=False, resume=True,
                         verbose=True, sampling_efficiency='parameter',
-                        outputfiles_basename='outdir/pm_label/',
                         n_live_points=500, n_params=2,
                         n_clustering_params=None, wrapped_params=None,
                         multimodal=True, const_efficiency_mode=False,
@@ -496,7 +481,6 @@ class TestPymultinest(unittest.TestCase):
     def test_translate_kwargs(self):
         expected = dict(importance_nested_sampling=False, resume=True,
                         verbose=True, sampling_efficiency='parameter',
-                        outputfiles_basename='outdir/pm_label/',
                         n_live_points=123, n_params=2,
                         n_clustering_params=None, wrapped_params=None,
                         multimodal=True, const_efficiency_mode=False,
@@ -563,7 +547,7 @@ class TestRunningSamplers(unittest.TestCase):
     def test_run_kombine(self):
         _ = bilby.run_sampler(
             likelihood=self.likelihood, priors=self.priors, sampler='kombine',
-            iterations=2500, nwalkers=100, save=False)
+            iterations=1000, nwalkers=100, save=False, autoburnin=True)
 
     def test_run_nestle(self):
         _ = bilby.run_sampler(
@@ -578,7 +562,8 @@ class TestRunningSamplers(unittest.TestCase):
     def test_run_ptemcee(self):
         _ = bilby.run_sampler(
             likelihood=self.likelihood, priors=self.priors, sampler='ptemcee',
-            nsteps=1000, nwalkers=10, ntemps=10, save=False)
+            nsamples=100, nwalkers=50, burn_in_act=1, ntemps=1,
+            frac_threshold=0.5, save=False)
 
     def test_run_pymc3(self):
         _ = bilby.run_sampler(

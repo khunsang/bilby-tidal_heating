@@ -17,8 +17,11 @@ import scipy.stats
 from scipy.special import logsumexp
 
 from . import utils
-from .utils import (logger, infer_parameters_from_function,
-                    check_directory_exists_and_if_not_mkdir,)
+from .utils import (
+    logger, infer_parameters_from_function,
+    check_directory_exists_and_if_not_mkdir,
+    latex_plot_format, safe_save_figure,
+)
 from .utils import BilbyJsonEncoder, decode_bilby_json
 from .prior import Prior, PriorDict, DeltaFunction
 
@@ -663,6 +666,7 @@ class Result(object):
             fmt(summary.median), fmt(summary.minus), fmt(summary.plus))
         return summary
 
+    @latex_plot_format
     def plot_single_density(self, key, prior=None, cumulative=False,
                             title=None, truth=None, save=True,
                             file_base_name=None, bins=50, label_fontsize=16,
@@ -742,7 +746,7 @@ class Result(object):
                 file_name = file_base_name + key + '_cdf'
             else:
                 file_name = file_base_name + key + '_pdf'
-            fig.savefig(file_name, dpi=dpi)
+            safe_save_figure(fig=fig, filename=file_name, dpi=dpi)
             plt.close(fig)
         else:
             return fig
@@ -827,6 +831,7 @@ class Result(object):
                     bins=bins, label_fontsize=label_fontsize, dpi=dpi,
                     title_fontsize=title_fontsize, quantiles=quantiles)
 
+    @latex_plot_format
     def plot_corner(self, parameters=None, priors=None, titles=True, save=True,
                     filename=None, dpi=300, **kwargs):
         """ Plot a corner-plot
@@ -926,8 +931,10 @@ class Result(object):
         cond2 = parameters is None
         cond3 = bool(kwargs.get("truths", True))
         if cond1 and cond2 and cond3:
-            parameters = {key: self.injection_parameters[key] for key in
-                          self.search_parameter_keys}
+            parameters = {
+                key: self.injection_parameters.get(key, np.nan)
+                for key in self.search_parameter_keys
+            }
 
         # If parameters is a dictionary, use the keys to determine which
         # parameters to plot and the values as truths.
@@ -984,11 +991,12 @@ class Result(object):
                 outdir = self._safe_outdir_creation(kwargs.get('outdir'), self.plot_corner)
                 filename = '{}/{}_corner.png'.format(outdir, self.label)
             logger.debug('Saving corner plot to {}'.format(filename))
-            fig.savefig(filename, dpi=dpi)
+            safe_save_figure(fig=fig, filename=filename, dpi=dpi)
             plt.close(fig)
 
         return fig
 
+    @latex_plot_format
     def plot_walkers(self, **kwargs):
         """ Method to plot the trace of the walkers in an ensemble MCMC plot """
         if hasattr(self, 'walkers') is False:
@@ -1016,9 +1024,10 @@ class Result(object):
         outdir = self._safe_outdir_creation(kwargs.get('outdir'), self.plot_walkers)
         filename = '{}/{}_walkers.png'.format(outdir, self.label)
         logger.debug('Saving walkers plot to {}'.format('filename'))
-        fig.savefig(filename)
+        safe_save_figure(fig=fig, filename=filename)
         plt.close(fig)
 
+    @latex_plot_format
     def plot_with_data(self, model, x, y, ndraws=1000, npoints=1000,
                        xlabel=None, ylabel=None, data_label='data',
                        data_fmt='o', draws_label=None, filename=None,
@@ -1090,7 +1099,7 @@ class Result(object):
         if filename is None:
             outdir = self._safe_outdir_creation(outdir, self.plot_with_data)
             filename = '{}/{}_plot_with_data'.format(outdir, self.label)
-        fig.savefig(filename, dpi=dpi)
+        safe_save_figure(fig=fig, filename=filename, dpi=dpi)
         plt.close(fig)
 
     @staticmethod
@@ -1467,6 +1476,7 @@ class ResultList(list):
             raise ResultListError("Inconsistent samplers between results")
 
 
+@latex_plot_format
 def plot_multiple(results, filename=None, labels=None, colours=None,
                   save=True, evidences=False, **kwargs):
     """ Generate a corner plot overlaying two sets of results
@@ -1546,10 +1556,11 @@ def plot_multiple(results, filename=None, labels=None, colours=None,
         filename = default_filename
 
     if save:
-        fig.savefig(filename)
+        safe_save_figure(fig=fig, filename=filename)
     return fig
 
 
+@latex_plot_format
 def make_pp_plot(results, filename=None, save=True, confidence_interval=[0.68, 0.95, 0.997],
                  lines=None, legend_fontsize='x-small', keys=None, title=True,
                  confidence_interval_alpha=0.1,
@@ -1667,7 +1678,7 @@ def make_pp_plot(results, filename=None, save=True, confidence_interval=[0.68, 0
     if save:
         if filename is None:
             filename = 'outdir/pp.png'
-        fig.savefig(filename, dpi=500)
+        safe_save_figure(fig=fig, filename=filename, dpi=500)
 
     return fig, pvals
 
