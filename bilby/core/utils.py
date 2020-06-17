@@ -28,6 +28,7 @@ speed_of_light = 299792458.0  # m/s
 parsec = 3.085677581491367e+16  # m
 solar_mass = 1.9884099021470415e+30  # Kg
 radius_of_earth = 6378136.6  # m
+gravitational_constant = 6.6743e-11  # m^3 kg^-1 s^-2
 
 _TOL = 14
 
@@ -130,6 +131,15 @@ def infer_args_from_function_except_n_args(func, n=1):
 
 def _infer_args_from_function_except_for_first_arg(func):
     return infer_args_from_function_except_n_args(func=func, n=1)
+
+
+def get_dict_with_properties(obj):
+    property_names = [p for p in dir(obj.__class__)
+                      if isinstance(getattr(obj.__class__, p), property)]
+    dict_with_properties = obj.__dict__.copy()
+    for key in property_names:
+        dict_with_properties[key] = getattr(obj, key)
+    return dict_with_properties
 
 
 def get_sampling_frequency(time_array):
@@ -300,6 +310,12 @@ def ra_dec_to_theta_phi(ra, dec, gmst):
     phi = ra - gmst
     theta = np.pi / 2 - dec
     return theta, phi
+
+
+def theta_phi_to_ra_dec(theta, phi, gmst):
+    ra = phi + gmst
+    dec = np.pi / 2 - theta
+    return ra, dec
 
 
 def gps_time_to_gmst(gps_time):
@@ -540,7 +556,9 @@ def check_directory_exists_and_if_not_mkdir(directory):
         Name of the directory
 
     """
-    if not os.path.exists(directory):
+    if directory == "":
+        return
+    elif not os.path.exists(directory):
         os.makedirs(directory)
         logger.debug('Making directory {}'.format(directory))
     else:
@@ -1003,6 +1021,8 @@ class BilbyJsonEncoder(json.JSONEncoder):
             return {'__complex__': True, 'real': obj.real, 'imag': obj.imag}
         if isinstance(obj, pd.DataFrame):
             return {'__dataframe__': True, 'content': obj.to_dict(orient='list')}
+        if isinstance(obj, pd.Series):
+            return {'__series__': True, 'content': obj.to_dict()}
         if inspect.isfunction(obj):
             return {"__function__": True, "__module__": obj.__module__, "__name__": obj.__name__}
         if inspect.isclass(obj):
@@ -1026,6 +1046,41 @@ def encode_astropy_quantity(dct):
     return dct
 
 
+def move_old_file(filename, overwrite=False):
+    """ Moves or removes an old file.
+
+    Parameters
+    ----------
+    filename: str
+        Name of the file to be move
+    overwrite: bool, optional
+        Whether or not to remove the file or to change the name
+        to filename + '.old'
+    """
+    if os.path.isfile(filename):
+        if overwrite:
+            logger.debug('Removing existing file {}'.format(filename))
+            os.remove(filename)
+        else:
+            logger.debug(
+                'Renaming existing file {} to {}.old'.format(filename,
+                                                             filename))
+            os.rename(filename, filename + '.old')
+    logger.debug("Saving result to {}".format(filename))
+
+
+def load_json(filename, gzip):
+    if gzip or os.path.splitext(filename)[1].lstrip('.') == 'gz':
+        import gzip
+        with gzip.GzipFile(filename, 'r') as file:
+            json_str = file.read().decode('utf-8')
+        dictionary = json.loads(json_str, object_hook=decode_bilby_json)
+    else:
+        with open(filename, 'r') as file:
+            dictionary = json.load(file, object_hook=decode_bilby_json)
+    return dictionary
+
+
 def decode_bilby_json(dct):
     if dct.get("__prior_dict__", False):
         cls = getattr(import_module(dct['__module__']), dct['__name__'])
@@ -1045,6 +1100,8 @@ def decode_bilby_json(dct):
         return complex(dct["real"], dct["imag"])
     if dct.get("__dataframe__", False):
         return pd.DataFrame(dct['content'])
+    if dct.get("__series__", False):
+        return pd.Series(dct['content'])
     if dct.get("__function__", False) or dct.get("__class__", False):
         default = ".".join([dct["__module__"], dct["__name__"]])
         return getattr(import_module(dct["__module__"]), dct["__name__"], default)
@@ -1137,6 +1194,7 @@ def latex_plot_format(func):
         _old_family = rcParams["font.family"]
         if find_executable("latex"):
             rcParams["text.usetex"] = True
+            rcParams['text.latex.preamble'] = r'\newcommand{\mathdefault}[1][]{}'
         else:
             rcParams["text.usetex"] = False
         rcParams["font.serif"] = "Computer Modern Roman"
@@ -1150,6 +1208,7 @@ def latex_plot_format(func):
 
 
 def safe_save_figure(fig, filename, **kwargs):
+    check_directory_exists_and_if_not_mkdir(os.path.dirname(filename))
     from matplotlib import rcParams
     try:
         fig.savefig(fname=filename, **kwargs)
@@ -1159,6 +1218,33 @@ def safe_save_figure(fig, filename, **kwargs):
         )
         rcParams["text.usetex"] = False
         fig.savefig(fname=filename, **kwargs)
+
+
+def kish_log_effective_sample_size(ln_weights):
+    """ Calculate the Kish effective sample size from the natural-log weights
+
+    See https://en.wikipedia.org/wiki/Effective_sample_size for details
+
+    Parameters
+    ----------
+    ln_weights: array
+        An array of the ln-weights
+
+    Returns
+    -------
+    ln_n_eff:
+        The natural-log of the effective sample size
+
+    """
+    log_n_eff = 2 * logsumexp(ln_weights) - logsumexp(2 * ln_weights)
+    return log_n_eff
+
+
+def get_function_path(func):
+    if hasattr(func, "__module__") and hasattr(func, "__name__"):
+        return "{}.{}".format(func.__module__, func.__name__)
+    else:
+        return func
 
 
 class IllegalDurationAndSamplingFrequencyException(Exception):
