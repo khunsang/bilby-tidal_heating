@@ -582,9 +582,10 @@ class Result(object):
             'injection_parameters', 'meta_data', 'search_parameter_keys',
             'fixed_parameter_keys', 'constraint_parameter_keys',
             'sampling_time', 'sampler_kwargs', 'use_ratio',
-            'log_likelihood_evaluations', 'log_prior_evaluations', 'samples',
-            'nested_samples', 'walkers', 'nburn', 'parameter_labels',
-            'parameter_labels_with_unit', 'version']
+            'log_likelihood_evaluations', 'log_prior_evaluations',
+            'num_likelihood_evaluations', 'samples', 'nested_samples',
+            'walkers', 'nburn', 'parameter_labels', 'parameter_labels_with_unit',
+            'version']
         dictionary = OrderedDict()
         for attr in save_attrs:
             try:
@@ -712,16 +713,20 @@ class Result(object):
 
         """
         latex_labels = []
-        for k in keys:
-            if k in self.search_parameter_keys:
-                idx = self.search_parameter_keys.index(k)
-                latex_labels.append(self.parameter_labels_with_unit[idx])
-            elif k in self.parameter_labels:
-                latex_labels.append(k)
+        for key in keys:
+            if key in self.search_parameter_keys:
+                idx = self.search_parameter_keys.index(key)
+                label = self.parameter_labels_with_unit[idx]
+            elif key in self.parameter_labels:
+                label = key
             else:
+                label = None
                 logger.debug(
-                    'key {} not a parameter label or latex label'.format(k))
-                latex_labels.append(' '.join(k.split('_')))
+                    'key {} not a parameter label or latex label'.format(key)
+                )
+            if label is None:
+                label = key.replace("_", " ")
+            latex_labels.append(label)
         return latex_labels
 
     @property
@@ -1647,24 +1652,26 @@ class ResultList(list):
             The result object with the combined evidences.
         """
         self.check_nested_samples()
-        if result.use_ratio:
-            log_bayes_factors = np.array([res.log_bayes_factor for res in self])
-            result.log_bayes_factor = logsumexp(log_bayes_factors, b=1. / len(self))
-            result.log_evidence = result.log_bayes_factor + result.log_noise_evidence
-            result_weights = np.exp(log_bayes_factors - np.max(log_bayes_factors))
-        else:
-            log_evidences = np.array([res.log_evidence for res in self])
-            result.log_evidence = logsumexp(log_evidences, b=1. / len(self))
-            result_weights = np.exp(log_evidences - np.max(log_evidences))
+
+        # Combine evidences
+        log_evidences = np.array([res.log_evidence for res in self])
+        result.log_evidence = logsumexp(log_evidences, b=1. / len(self))
+        result.log_bayes_factor = result.log_evidence - result.log_noise_evidence
+
+        # Propogate uncertainty in combined evidence
         log_errs = [res.log_evidence_err for res in self if np.isfinite(res.log_evidence_err)]
         if len(log_errs) > 0:
             result.log_evidence_err = 0.5 * logsumexp(2 * np.array(log_errs), b=1. / len(self))
         else:
             result.log_evidence_err = np.nan
+
+        # Combined posteriors with a weighting
+        result_weights = np.exp(log_evidences - np.max(log_evidences))
         posteriors = list()
         for res, frac in zip(self, result_weights):
             selected_samples = (np.random.uniform(size=len(res.posterior)) < frac)
             posteriors.append(res.posterior[selected_samples])
+
         # remove original nested_samples
         result.nested_samples = None
         result.sampler_kwargs = None

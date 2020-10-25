@@ -3,7 +3,8 @@ import sys
 import datetime
 from collections import OrderedDict
 
-from ..utils import command_line_args, logger
+import bilby
+from ..utils import command_line_args, logger, loaded_modules_dict
 from ..prior import PriorDict, DeltaFunction
 
 from .base_sampler import Sampler, SamplingMarginalisedParameterError
@@ -20,13 +21,14 @@ from .pymc3 import Pymc3
 from .pymultinest import Pymultinest
 from .ultranest import Ultranest
 from .fake_sampler import FakeSampler
+from .dnest4 import DNest4
 from . import proposal
 
 IMPLEMENTED_SAMPLERS = {
-    'cpnest': Cpnest, 'dynamic_dynesty': DynamicDynesty, 'dynesty': Dynesty,
-    'emcee': Emcee, 'kombine': Kombine, 'nestle': Nestle, 'ptemcee': Ptemcee,
-    'ptmcmcsampler': PTMCMCSampler, 'pymc3': Pymc3, 'pymultinest': Pymultinest,
-    'pypolychord': PyPolyChord, 'ultranest': Ultranest,
+    'cpnest': Cpnest, 'dnest4': DNest4, 'dynamic_dynesty': DynamicDynesty,
+    'dynesty': Dynesty, 'emcee': Emcee, 'kombine': Kombine, 'nestle': Nestle,
+    'ptemcee': Ptemcee, 'ptmcmcsampler': PTMCMCSampler, 'pymc3': Pymc3,
+    'pymultinest': Pymultinest, 'pypolychord': PyPolyChord, 'ultranest': Ultranest,
     'fake_sampler': FakeSampler}
 
 if command_line_args.sampler_help:
@@ -107,7 +109,7 @@ def run_sampler(likelihood, priors=None, label='label', outdir='outdir',
 
     Returns
     -------
-    result
+    result: bilby.core.result.Result
         An object containing the results
     """
 
@@ -140,6 +142,7 @@ def run_sampler(likelihood, priors=None, label='label', outdir='outdir',
     if meta_data is None:
         meta_data = dict()
     meta_data['likelihood'] = likelihood.meta_data
+    meta_data["loaded_modules"] = loaded_modules_dict()
 
     if command_line_args.bilby_zero_likelihood_mode:
         from bilby.core.likelihood import ZeroLikelihood

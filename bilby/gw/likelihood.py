@@ -167,6 +167,9 @@ class GravitationalWaveTransient(Likelihood):
             self.distance_prior_array = np.array(
                 [self.priors['luminosity_distance'].prob(distance)
                  for distance in self._distance_array])
+            if self.phase_marginalization:
+                max_bound = np.ceil(10 + np.log10(self._dist_multiplier))
+                self._setup_phase_marginalization(max_bound=max_bound)
             self._setup_distance_marginalization(
                 distance_marginalization_lookup_table)
             for key in ['redshift', 'comoving_distance']:
@@ -597,8 +600,13 @@ class GravitationalWaveTransient(Likelihood):
 
     @property
     def _ref_dist(self):
-        """ Smallest distance contained in priors """
-        return self._distance_array[0]
+        """ Median distance in priors """
+        return self.priors['luminosity_distance'].rescale(0.5)
+
+    @property
+    def _dist_multiplier(self):
+        ''' Maximum value of ref_dist/dist_array '''
+        return self._ref_dist / self._distance_array[0]
 
     @property
     def _optimal_snr_squared_ref_array(self):
@@ -632,7 +640,7 @@ class GravitationalWaveTransient(Likelihood):
             self._create_lookup_table()
         self._interp_dist_margd_loglikelihood = UnsortedInterp2d(
             self._d_inner_h_ref_array, self._optimal_snr_squared_ref_array,
-            self._dist_margd_loglikelihood_array, kind='cubic')
+            self._dist_margd_loglikelihood_array, kind='cubic', fill_value=-np.inf)
 
     @property
     def cached_lookup_table_filename(self):
@@ -714,10 +722,10 @@ class GravitationalWaveTransient(Likelihood):
         self._dist_margd_loglikelihood_array -= log_norm
         self.cache_lookup_table()
 
-    def _setup_phase_marginalization(self):
+    def _setup_phase_marginalization(self, min_bound=-5, max_bound=10):
         self._bessel_function_interped = interp1d(
-            np.logspace(-5, 10, int(1e6)), np.logspace(-5, 10, int(1e6)) +
-            np.log([i0e(snr) for snr in np.logspace(-5, 10, int(1e6))]),
+            np.logspace(-5, max_bound, int(1e6)), np.logspace(-5, max_bound, int(1e6)) +
+            np.log([i0e(snr) for snr in np.logspace(-5, max_bound, int(1e6))]),
             bounds_error=False, fill_value=(0, np.nan))
 
     def _setup_time_marginalization(self):
@@ -788,10 +796,24 @@ class GravitationalWaveTransient(Likelihood):
     @property
     def lal_version(self):
         try:
-            from lal import git_version
-            lal_version = str(git_version.verbose_msg).replace("\n", ";")
-            logger.info("Using LAL version {}".format(lal_version))
-            return lal_version
+            from lal import git_version, __version__
+            lal_version = str(__version__)
+            logger.info("Using lal version {}".format(lal_version))
+            lal_git_version = str(git_version.verbose_msg).replace("\n", ";")
+            logger.info("Using lal git version {}".format(lal_git_version))
+            return "lal_version={}, lal_git_version={}".format(lal_version, lal_git_version)
+        except (ImportError, AttributeError):
+            return "N/A"
+
+    @property
+    def lalsimulation_version(self):
+        try:
+            from lalsimulation import git_version, __version__
+            lalsim_version = str(__version__)
+            logger.info("Using lalsimulation version {}".format(lalsim_version))
+            lalsim_git_version = str(git_version.verbose_msg).replace("\n", ";")
+            logger.info("Using lalsimulation git version {}".format(lalsim_git_version))
+            return "lalsimulation_version={}, lalsimulation_git_version={}".format(lalsim_version, lalsim_git_version)
         except (ImportError, AttributeError):
             return "N/A"
 
@@ -811,7 +833,8 @@ class GravitationalWaveTransient(Likelihood):
             start_time=self.waveform_generator.start_time,
             time_reference=self.time_reference,
             reference_frame=self._reference_frame_str,
-            lal_version=self.lal_version)
+            lal_version=self.lal_version,
+            lalsimulation_version=self.lalsimulation_version)
 
 
 class BasicGravitationalWaveTransient(Likelihood):
@@ -1348,7 +1371,7 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
 
 
 def get_binary_black_hole_likelihood(interferometers):
-    """ A rapper to quickly set up a likelihood for BBH parameter estimation
+    """ A wrapper to quickly set up a likelihood for BBH parameter estimation
 
     Parameters
     ----------
