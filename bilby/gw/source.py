@@ -171,7 +171,7 @@ def lal_binary_black_hole(
 
 def lal_binary_black_hole_tidal_heating(
         frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
-        phi_12, a_2, tilt_2, phi_jl, theta_jn, phase, H_eff5, H_eff8, **kwargs):
+        phi_12, a_2, tilt_2, phi_jl, theta_jn, phase, H_eff5, H_eff8, Q_tilde, **kwargs):
 
     """ Phase correction to the horizon parameters are added to a Binary Black Hole waveform model using lalsimulation
 
@@ -227,7 +227,7 @@ def lal_binary_black_hole_tidal_heating(
         frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
         luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
         a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
-        phi_jl=phi_jl, H_eff5=H_eff5, H_eff8=H_eff8, **waveform_kwargs)
+        phi_jl=phi_jl, H_eff5=H_eff5, H_eff8=H_eff8, Q_tilde = Q_tilde, **waveform_kwargs)
 
 
 def lal_binary_neutron_star(
@@ -318,7 +318,7 @@ def lal_binary_neutron_star(
 def lal_binary_neutron_star_tidal_heating(
         frequency_array, mass_1, mass_2, luminosity_distance, a_1, tilt_1,
         phi_12, a_2, tilt_2, phi_jl, theta_jn, phase, lambda_1, lambda_2,
-        H_eff5, H_eff8, **kwargs):
+        H_eff5, H_eff8, Q_tilde, **kwargs):
     """ Phase correction to the horizon parameters and tidal corrections
     are added to a CBC waveform model using lalsimulation
     Parameters
@@ -378,7 +378,7 @@ def lal_binary_neutron_star_tidal_heating(
         luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
         a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
         phi_jl=phi_jl, lambda_1=lambda_1, lambda_2=lambda_2, H_eff5=H_eff5,
-        H_eff8=H_eff8, **waveform_kwargs)
+        H_eff8=H_eff8, Q_tilde = Q_tilde, **waveform_kwargs)
 
 
 def lal_eccentric_binary_black_hole_no_spins(
@@ -450,7 +450,7 @@ def lal_eccentric_binary_black_hole_no_spins(
 def _base_lal_cbc_fd_waveform(
         frequency_array, mass_1, mass_2, luminosity_distance, theta_jn, phase,
         a_1=0.0, a_2=0.0, tilt_1=0.0, tilt_2=0.0, phi_12=0.0, phi_jl=0.0,
-        lambda_1=0.0, lambda_2=0.0, eccentricity=0.0, H_eff5=0, H_eff8=0,
+        lambda_1=0.0, lambda_2=0.0, eccentricity=0.0, H_eff5=0, H_eff8=0, Q_tilde = 0,
         **waveform_kwargs):
     """ Generate a cbc waveform model using lalsimulation
 
@@ -575,7 +575,7 @@ def _base_lal_cbc_fd_waveform(
                 waveform_dictionary, approximant)
             heated_phase = phase_TH(
                 frequency_array, mass_1, mass_2, a_1, a_2, spin_1x, spin_1y, spin_1z,
-                spin_2x, spin_2y, spin_2z, H_eff5, H_eff8, start_frequency, delta_frequency)
+                spin_2x, spin_2y, spin_2z, H_eff5, H_eff8, Q_tilde, start_frequency, delta_frequency)
             expo_heated_phase = (np.cos(heated_phase) - 1j * np.sin(heated_phase))
             hplus.data.data[:] = hplus.data.data * expo_heated_phase[:hplus.data.length]
             hcross.data.data[:] = hcross.data.data * expo_heated_phase[:hplus.data.length]
@@ -592,7 +592,7 @@ def _base_lal_cbc_fd_waveform(
                                          iota=iota, phase=phase,
                                          eccentricity=eccentricity,
                                          start_frequency=start_frequency,
-                                         Horizon=(H_eff5, H_eff8))
+                                         Horizon=(H_eff5, H_eff8), Q_tilde=Q_tilde)
                 logger.warning("Evaluating the waveform failed with error: {}\n".format(e) +
                                "The parameters were {}\n".format(failed_parameters) +
                                "Likelihood will be set to -inf.")
