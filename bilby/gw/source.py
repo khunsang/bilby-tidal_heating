@@ -62,8 +62,8 @@ def phase_TH(
     frequency_array_effective = frequency_array[minIndx:]
     v = np.cbrt(lal.PI * lal.G_SI * m * frequency_array_effective) / lal.C_SI
     phase_term1 = 3.0 / (128.0 * eta * v**5)
-	# 2 PN quadrupole term
-	term_QM = -( 25 * Q_tilde ) / ( 32 * eta * v)
+    # 2 PN quadrupole term
+    term_QM = -( 25 * Q_tilde ) / ( 32 * eta * v)
     # 3.5 PN term ** -ve sign added
     term_v7 = - 5 * v**7 * (952 * eta + 995) / 168.0 * H_eff5
     # 2.5 PN term ** -ve sign added ***
@@ -76,7 +76,7 @@ def phase_TH(
                         (- 56 * eta - 73 * (np.sqrt(1 - 4 * eta) - 1)) * LdotS2 * a_2)
     # 4PN term
     term_v8 = 5 * v**8 * (3 * np.log(v) - 1) / 9.0 * (H_eff5 * Psi_SO - 4 * H_eff8)
-	# 2 PN quadrupole term abrorbs 'phase_term1'
+    # 2 PN quadrupole term abrorbs 'phase_term1'
     delta_phase = phase_term1 * (term_v5 + term_v7 + term_v8) + term_QM
     delta_phase = np.concatenate((np.zeros(minIndx), delta_phase))
     return delta_phase
