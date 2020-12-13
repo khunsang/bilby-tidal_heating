@@ -612,7 +612,7 @@ class Dynesty(NestedSampler):
                 fig = dyplot.traceplot(self.sampler.results, labels=labels)[0]
                 fig.tight_layout()
                 fig.savefig(filename)
-            except (RuntimeError, np.linalg.linalg.LinAlgError, ValueError) as e:
+            except (RuntimeError, np.linalg.linalg.LinAlgError, ValueError, OverflowError, Exception) as e:
                 logger.warning(e)
                 logger.warning('Failed to create dynesty state plot at checkpoint')
             finally:
@@ -689,6 +689,16 @@ class Dynesty(NestedSampler):
 
         """
         return self.priors.rescale(self._search_parameter_keys, theta)
+
+    def calc_likelihood_count(self):
+        if self.likelihood_benchmark:
+            if hasattr(self, 'sampler'):
+                self.result.num_likelihood_evaluations = \
+                    getattr(self.sampler, 'ncall', 0)
+            else:
+                self.result.num_likelihood_evaluations = 0
+        else:
+            return None
 
 
 def sample_rwalk_bilby(args):
