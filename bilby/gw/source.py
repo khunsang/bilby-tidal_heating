@@ -227,7 +227,7 @@ def lal_binary_black_hole_tidal_heating(
         frequency_array=frequency_array, mass_1=mass_1, mass_2=mass_2,
         luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
         a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
-        phi_jl=phi_jl, H_eff5=H_eff5, H_eff8=H_eff8, Q_tilde = Q_tilde, **waveform_kwargs)
+        phi_jl=phi_jl, H_eff5=H_eff5, H_eff8=H_eff8, Q_tilde=Q_tilde, **waveform_kwargs)
 
 
 def lal_binary_neutron_star(
@@ -378,7 +378,7 @@ def lal_binary_neutron_star_tidal_heating(
         luminosity_distance=luminosity_distance, theta_jn=theta_jn, phase=phase,
         a_1=a_1, a_2=a_2, tilt_1=tilt_1, tilt_2=tilt_2, phi_12=phi_12,
         phi_jl=phi_jl, lambda_1=lambda_1, lambda_2=lambda_2, H_eff5=H_eff5,
-        H_eff8=H_eff8, Q_tilde = Q_tilde, **waveform_kwargs)
+        H_eff8=H_eff8, Q_tilde=Q_tilde, **waveform_kwargs)
 
 
 def lal_eccentric_binary_black_hole_no_spins(
@@ -450,7 +450,7 @@ def lal_eccentric_binary_black_hole_no_spins(
 def _base_lal_cbc_fd_waveform(
         frequency_array, mass_1, mass_2, luminosity_distance, theta_jn, phase,
         a_1=0.0, a_2=0.0, tilt_1=0.0, tilt_2=0.0, phi_12=0.0, phi_jl=0.0,
-        lambda_1=0.0, lambda_2=0.0, eccentricity=0.0, H_eff5=0, H_eff8=0, Q_tilde = 0,
+        lambda_1=0.0, lambda_2=0.0, eccentricity=0.0, H_eff5=0, H_eff8=0, Q_tilde=0,
         **waveform_kwargs):
     """ Generate a cbc waveform model using lalsimulation
 
