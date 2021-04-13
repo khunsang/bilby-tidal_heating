@@ -110,7 +110,7 @@ class Analytical1DLikelihood(Likelihood):
 
     def __init__(self, x, y, func, **kwargs):
         parameters = infer_parameters_from_function(func)
-        super(Analytical1DLikelihood, self).__init__(dict.fromkeys(parameters))
+        super(Analytical1DLikelihood, self).__init__(dict())
         self.x = x
         self.y = y
         self._func = func
