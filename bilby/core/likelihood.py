@@ -109,7 +109,6 @@ class Analytical1DLikelihood(Likelihood):
     """
 
     def __init__(self, x, y, func, **kwargs):
-        parameters = infer_parameters_from_function(func)
         super(Analytical1DLikelihood, self).__init__(dict())
         self.x = x
         self.y = y
@@ -306,7 +305,7 @@ class ExponentialLikelihood(Analytical1DLikelihood):
         super(ExponentialLikelihood, self).__init__(x=x, y=y, func=func, **kwargs)
 
     def log_likelihood(self):
-        mu = self.func(self.x, **self.model_parameters, **kwargs)
+        mu = self.func(self.x, **self.model_parameters, **self.kwargs)
         if np.any(mu < 0.):
             return -np.inf
         return -np.sum(np.log(mu) + (self.y / mu))
@@ -358,7 +357,7 @@ class StudentTLikelihood(Analytical1DLikelihood):
             Set the scale of the distribution. If not given then this defaults
             to 1, which specifies a standard (central) Student's t-distribution
         """
-        super(StudentTLikelihood, self).__init__(x=x, y=y, func=func, **kwags)
+        super(StudentTLikelihood, self).__init__(x=x, y=y, func=func, **kwargs)
 
         self.nu = nu
         self.sigma = sigma
