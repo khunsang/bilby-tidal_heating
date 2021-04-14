@@ -4,6 +4,8 @@ import numpy as np
 from scipy.special import gammaln, xlogy
 from scipy.stats import multivariate_normal
 
+from .utils import infer_parameters_from_function
+
 
 class Likelihood(object):
 
@@ -107,11 +109,12 @@ class Analytical1DLikelihood(Likelihood):
     """
 
     def __init__(self, x, y, func, **kwargs):
+        parameters = infer_parameters_from_function(func)
         super(Analytical1DLikelihood, self).__init__(dict())
         self.x = x
         self.y = y
         self._func = func
-        self._function_keys = [key for key in self.parameters.keys() if key not in kwargs]
+        self._function_keys = [key for key in parameters.keys() if key not in kwargs]
         self.kwargs = kwargs
 
     def __repr__(self):
