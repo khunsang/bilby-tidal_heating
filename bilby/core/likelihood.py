@@ -4,8 +4,6 @@ import numpy as np
 from scipy.special import gammaln, xlogy
 from scipy.stats import multivariate_normal
 
-from .utils import infer_parameters_from_function
-
 
 class Likelihood(object):
 
