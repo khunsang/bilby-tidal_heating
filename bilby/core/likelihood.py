@@ -114,7 +114,7 @@ class Analytical1DLikelihood(Likelihood):
         self.x = x
         self.y = y
         self._func = func
-        self._function_keys = [key for key in parameters.keys() if key not in kwargs]
+        self._function_keys = [key for key in parameters if key not in kwargs]
         self.kwargs = kwargs
 
     def __repr__(self):
