@@ -2261,7 +2261,10 @@ class MBGravitationalWaveTransient(GravitationalWaveTransient):
         d_inner_h = np.dot(strain, self.linear_coeffs[interferometer.name])
 
         if self.linear_interpolation:
-            optimal_snr_squared = np.vdot(np.real(strain * np.conjugate(strain)), self.quadratic_coeffs[interferometer.name])
+            optimal_snr_squared = np.vdot(
+                np.real(strain * np.conjugate(strain)),
+                self.quadratic_coeffs[interferometer.name]
+            )
         else:
             optimal_snr_squared = 0.
             for b in range(len(self.fb_dfb) - 1):
