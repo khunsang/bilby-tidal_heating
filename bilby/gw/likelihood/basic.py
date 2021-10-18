@@ -30,7 +30,7 @@ class BasicGravitationalWaveTransient(Likelihood):
         self.waveform_generator = waveform_generator
 
     def __repr__(self):
-        return self.__class__.__name__ + '(interferometers={},\n\twaveform_generator={})'\
+        return self.__class__.__name__ + '(interferometers={},\n\twaveform_generator={})' \
             .format(self.interferometers, self.waveform_generator)
 
     def noise_log_likelihood(self):
@@ -57,7 +57,7 @@ class BasicGravitationalWaveTransient(Likelihood):
 
         """
         log_l = 0
-        waveform_polarizations =\
+        waveform_polarizations = \
             self.waveform_generator.frequency_domain_strain(
                 self.parameters.copy())
         if waveform_polarizations is None:

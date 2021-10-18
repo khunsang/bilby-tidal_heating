@@ -72,10 +72,10 @@ class MBGravitationalWaveTransient(GravitationalWaveTransient):
 
     """
     def __init__(
-        self, interferometers, waveform_generator, reference_chirp_mass, highest_mode=2, linear_interpolation=True,
-        accuracy_factor=5, time_offset=None, delta_f_end=None, maximum_banding_frequency=None,
-        minimum_banding_duration=0., distance_marginalization=False, phase_marginalization=False, priors=None,
-        distance_marginalization_lookup_table=None, reference_frame="sky", time_reference="geocenter"
+            self, interferometers, waveform_generator, reference_chirp_mass, highest_mode=2, linear_interpolation=True,
+            accuracy_factor=5, time_offset=None, delta_f_end=None, maximum_banding_frequency=None,
+            minimum_banding_duration=0., distance_marginalization=False, phase_marginalization=False, priors=None,
+            distance_marginalization_lookup_table=None, reference_frame="sky", time_reference="geocenter"
     ):
         super(MBGravitationalWaveTransient, self).__init__(
             interferometers=interferometers, waveform_generator=waveform_generator, priors=priors,
@@ -156,17 +156,14 @@ class MBGravitationalWaveTransient(GravitationalWaveTransient):
         maximum offset of geocent time is 2.1 seconds, which is the value for the standard prior used by
         LIGO-Virgo-KAGRA.
         """
-        time_parameter = self.time_reference + "_time"
         if time_offset is not None:
             if isinstance(time_offset, int) or isinstance(time_offset, float):
                 self._time_offset = time_offset
             else:
                 raise TypeError("time_offset must be a number")
-        elif self.priors is not None and time_parameter in self.priors:
-            self._time_offset = (
-                self.interferometers.start_time + self.interferometers.duration
-                - self.priors[time_parameter].minimum + radius_of_earth / speed_of_light
-            )
+        elif self.priors is not None and 'geocent_time' in self.priors:
+            self._time_offset = self.interferometers.start_time + self.interferometers.duration \
+                                - self.priors['geocent_time'].minimum + radius_of_earth / speed_of_light
         else:
             self._time_offset = 2.12
             logger.warning("time offset can not be inferred. Use the standard time offset of {} seconds.".format(
@@ -186,17 +183,14 @@ class MBGravitationalWaveTransient(GravitationalWaveTransient):
         used. It is computed assuming that the minimum offset of geocent time is 1.9 seconds, which is the
         value for the standard prior used by LIGO-Virgo-KAGRA.
         """
-        time_parameter = self.time_reference + "_time"
         if delta_f_end is not None:
             if isinstance(delta_f_end, int) or isinstance(delta_f_end, float):
                 self._delta_f_end = delta_f_end
             else:
                 raise TypeError("delta_f_end must be a number")
-        elif self.priors is not None and time_parameter in self.priors:
-            self._delta_f_end = 100 / (
-                self.interferometers.start_time + self.interferometers.duration
-                - self.priors[time_parameter].maximum - radius_of_earth / speed_of_light
-            )
+        elif self.priors is not None and 'geocent_time' in self.priors:
+            self._delta_f_end = 100. / (self.interferometers.start_time + self.interferometers.duration
+                                        - self.priors['geocent_time'].maximum - radius_of_earth / speed_of_light)
         else:
             self._delta_f_end = 53.
             logger.warning("delta_f_end can not be inferred. Use the standard delta_f_end of {} Hz.".format(
@@ -215,10 +209,8 @@ class MBGravitationalWaveTransient(GravitationalWaveTransient):
         a high frequency, which can break down the approximation. It is calculated from the 0PN formula of
         time-to-merger \tau(f). The user-specified frequency is used if it is lower than that frequency.
         """
-        fmax_tmp = (
-            (15 / 968)**(3 / 5) * (self.highest_mode / (2 * np.pi))**(8 / 5)
-            / self.reference_chirp_mass_in_second
-        )
+        fmax_tmp = (15. / 968.)**(3. / 5.) * (self.highest_mode / (2. * np.pi))**(8. / 5.) \
+                   / self.reference_chirp_mass_in_second
         if maximum_banding_frequency is not None:
             if isinstance(maximum_banding_frequency, int) or isinstance(maximum_banding_frequency, float):
                 if maximum_banding_frequency < fmax_tmp:
@@ -268,7 +260,7 @@ class MBGravitationalWaveTransient(GravitationalWaveTransient):
         """
         f_22 = 2. * f / self.highest_mode
         return 5. / 256. * self.reference_chirp_mass_in_second * \
-            (np.pi * self.reference_chirp_mass_in_second * f_22)**(-8. / 3.)
+               (np.pi * self.reference_chirp_mass_in_second * f_22)**(-8. / 3.)
 
     def _dtaudf(self, f):
         """Compute the derivative of time-to-merger with respect to a starting frequency. This uses the 0PN formula.
@@ -286,7 +278,7 @@ class MBGravitationalWaveTransient(GravitationalWaveTransient):
         """
         f_22 = 2. * f / self.highest_mode
         return -5. / 96. * self.reference_chirp_mass_in_second * \
-            (np.pi * self.reference_chirp_mass_in_second * f_22)**(-8. / 3.) / f
+               (np.pi * self.reference_chirp_mass_in_second * f_22)**(-8. / 3.) / f
 
     def _find_starting_frequency(self, duration, fnow):
         """Find the starting frequency of the next band satisfying (10) and
@@ -311,7 +303,7 @@ class MBGravitationalWaveTransient(GravitationalWaveTransient):
         def _is_above_fnext(f):
             "This function returns True if f > fnext"
             cond1 = duration - self.time_offset - self._tau(f) - \
-                self.accuracy_factor * np.sqrt(-self._dtaudf(f)) > 0.
+                    self.accuracy_factor * np.sqrt(-self._dtaudf(f)) > 0.
             cond2 = f - 1. / np.sqrt(-self._dtaudf(f)) - fnow > 0.
             return cond1 and cond2
         # Bisection search for fnext
@@ -477,12 +469,12 @@ class MBGravitationalWaveTransient(GravitationalWaveTransient):
                     else:
                         end_idx_in_sum = math.ceil(ifo.duration * banded_frequencies[k + 1]) - 1
                     window_over_psd = full_inv_psds[start_idx_in_sum:end_idx_in_sum + 1] \
-                        * self._window(full_frequencies[start_idx_in_sum:end_idx_in_sum + 1], i)
+                                      * self._window(full_frequencies[start_idx_in_sum:end_idx_in_sum + 1], i)
                     frequencies_in_sum = full_frequencies[start_idx_in_sum:end_idx_in_sum + 1]
                     coeffs[k] += 4. * self.durations[i] / ifo.duration * np.sum(
                         (banded_frequencies[k + 1] - frequencies_in_sum) * window_over_psd)
                     coeffs[k + 1] += 4. * self.durations[i] / ifo.duration \
-                        * np.sum((frequencies_in_sum - banded_frequencies[k]) * window_over_psd)
+                                     * np.sum((frequencies_in_sum - banded_frequencies[k]) * window_over_psd)
                 self.quadratic_coeffs[ifo.name] = np.append(self.quadratic_coeffs[ifo.name], coeffs)
 
     def _setup_quadratic_coefficients_ifft_fft(self):
@@ -500,7 +492,7 @@ class MBGravitationalWaveTransient(GravitationalWaveTransient):
             logger.info("Pre-computing quadratic coefficients for {}".format(ifo.name))
             full_inv_psds = np.zeros(N // 2 + 1)
             full_inv_psds[:len(ifo.power_spectral_density_array)][ifo.frequency_mask] = 1. / \
-                ifo.power_spectral_density_array[ifo.frequency_mask]
+                                                                                        ifo.power_spectral_density_array[ifo.frequency_mask]
             for b in range(len(self.fb_dfb) - 1):
                 Imb = np.fft.irfft(full_inv_psds[:self.Nbs[b] // 2 + 1])
                 half_length = Nhatbs[b] // 2
@@ -532,14 +524,12 @@ class MBGravitationalWaveTransient(GravitationalWaveTransient):
         snrs: named tuple of snrs
 
         """
-        strain = np.zeros(len(self.banded_frequency_points), dtype=complex)
-        for mode in waveform_polarizations:
-            response = interferometer.antenna_response(
-                self.parameters['ra'], self.parameters['dec'],
-                self.parameters['geocent_time'], self.parameters['psi'],
-                mode
-            )
-            strain += waveform_polarizations[mode][self.unique_to_original_frequencies] * response
+        f_plus = interferometer.antenna_response(
+            self.parameters['ra'], self.parameters['dec'],
+            self.parameters['geocent_time'], self.parameters['psi'], 'plus')
+        f_cross = interferometer.antenna_response(
+            self.parameters['ra'], self.parameters['dec'],
+            self.parameters['geocent_time'], self.parameters['psi'], 'cross')
 
         dt = interferometer.time_delay_from_geocenter(
             self.parameters['ra'], self.parameters['dec'],
@@ -550,16 +540,15 @@ class MBGravitationalWaveTransient(GravitationalWaveTransient):
         calib_factor = interferometer.calibration_model.get_calibration_factor(
             self.banded_frequency_points, prefix='recalib_{}_'.format(interferometer.name), **self.parameters)
 
-        strain *= np.exp(-1j * 2. * np.pi * self.banded_frequency_points * ifo_time)
-        strain *= np.conjugate(calib_factor)
+        h = f_plus * waveform_polarizations['plus'][self.unique_to_original_frequencies] \
+            + f_cross * waveform_polarizations['cross'][self.unique_to_original_frequencies]
+        h *= np.exp(-1j * 2. * np.pi * self.banded_frequency_points * ifo_time)
+        h *= np.conjugate(calib_factor)
 
-        d_inner_h = np.dot(strain, self.linear_coeffs[interferometer.name])
+        d_inner_h = np.dot(h, self.linear_coeffs[interferometer.name])
 
         if self.linear_interpolation:
-            optimal_snr_squared = np.vdot(
-                np.real(strain * np.conjugate(strain)),
-                self.quadratic_coeffs[interferometer.name]
-            )
+            optimal_snr_squared = np.vdot(np.real(h * np.conjugate(h)), self.quadratic_coeffs[interferometer.name])
         else:
             optimal_snr_squared = 0.
             for b in range(len(self.fb_dfb) - 1):
@@ -568,12 +557,12 @@ class MBGravitationalWaveTransient(GravitationalWaveTransient):
                 Mb = self.Mbs[b]
                 if b == 0:
                     optimal_snr_squared += (4. / self.interferometers.duration) * np.vdot(
-                        np.real(strain[start_idx:end_idx + 1] * np.conjugate(strain[start_idx:end_idx + 1])),
+                        np.real(h[start_idx:end_idx + 1] * np.conjugate(h[start_idx:end_idx + 1])),
                         interferometer.frequency_mask[Ks:Ke + 1] * self.windows[start_idx:end_idx + 1]
                         / interferometer.power_spectral_density_array[Ks:Ke + 1])
                 else:
                     self.wths[interferometer.name][b][Ks:Ke + 1] = self.square_root_windows[start_idx:end_idx + 1] \
-                        * strain[start_idx:end_idx + 1]
+                                                                   * h[start_idx:end_idx + 1]
                     self.hbcs[interferometer.name][b][-Mb:] = np.fft.irfft(self.wths[interferometer.name][b])
                     thbc = np.fft.rfft(self.hbcs[interferometer.name][b])
                     optimal_snr_squared += (4. / self.Tbhats[b]) * np.vdot(

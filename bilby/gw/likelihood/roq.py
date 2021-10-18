@@ -67,12 +67,12 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
 
     """
     def __init__(
-        self, interferometers, waveform_generator, priors,
-        weights=None, linear_matrix=None, quadratic_matrix=None,
-        roq_params=None, roq_params_check=True, roq_scale_factor=1,
-        distance_marginalization=False, phase_marginalization=False,
-        distance_marginalization_lookup_table=None,
-        reference_frame="sky", time_reference="geocenter"
+            self, interferometers, waveform_generator, priors,
+            weights=None, linear_matrix=None, quadratic_matrix=None,
+            roq_params=None, roq_params_check=True, roq_scale_factor=1,
+            distance_marginalization=False, phase_marginalization=False,
+            distance_marginalization_lookup_table=None,
+            reference_frame="sky", time_reference="geocenter"
 
     ):
         super(ROQGravitationalWaveTransient, self).__init__(
@@ -112,7 +112,7 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
                 quadratic_matrix = np.load(quadratic_matrix).T
             self._set_weights(linear_matrix=linear_matrix,
                               quadratic_matrix=quadratic_matrix)
-        self.frequency_nodes_linear =\
+        self.frequency_nodes_linear = \
             waveform_generator.waveform_arguments['frequency_nodes_linear']
         self.frequency_nodes_quadratic = \
             waveform_generator.waveform_arguments['frequency_nodes_quadratic']
@@ -151,9 +151,9 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
         h_plus_linear = f_plus * waveform_polarizations['linear']['plus'] * calib_linear
         h_cross_linear = f_cross * waveform_polarizations['linear']['cross'] * calib_linear
         h_plus_quadratic = (
-            f_plus * waveform_polarizations['quadratic']['plus'] * calib_quadratic)
+                f_plus * waveform_polarizations['quadratic']['plus'] * calib_quadratic)
         h_cross_quadratic = (
-            f_cross * waveform_polarizations['quadratic']['cross'] * calib_quadratic)
+                f_cross * waveform_polarizations['quadratic']['cross'] * calib_quadratic)
 
         indices, in_bounds = self._closest_time_indices(
             ifo_time, self.weights['time_samples'])
@@ -271,11 +271,11 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
         if ifo.maximum_frequency > roq_maximum_frequency:
             raise BilbyROQParamsRangeError(
                 "Requested maximum frequency {} larger than ROQ basis fhigh {}"
-                .format(ifo.maximum_frequency, roq_maximum_frequency))
+                    .format(ifo.maximum_frequency, roq_maximum_frequency))
         if ifo.minimum_frequency < roq_minimum_frequency:
             raise BilbyROQParamsRangeError(
                 "Requested minimum frequency {} lower than ROQ basis flow {}"
-                .format(ifo.minimum_frequency, roq_minimum_frequency))
+                    .format(ifo.minimum_frequency, roq_minimum_frequency))
         if ifo.strain_data.duration != roq_segment_length:
             raise BilbyROQParamsRangeError(
                 "Requested duration differs from ROQ basis seglen")
@@ -290,24 +290,24 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
         elif priors.minimum_chirp_mass < roq_minimum_chirp_mass:
             raise BilbyROQParamsRangeError(
                 "Prior minimum chirp mass {} less than ROQ basis bound {}"
-                .format(priors.minimum_chirp_mass,
-                        roq_minimum_chirp_mass))
+                    .format(priors.minimum_chirp_mass,
+                            roq_minimum_chirp_mass))
 
         if priors.maximum_chirp_mass is None:
             logger.warning("Unable to check maximum_chirp mass ROQ bounds")
         elif priors.maximum_chirp_mass > roq_maximum_chirp_mass:
             raise BilbyROQParamsRangeError(
                 "Prior maximum chirp mass {} greater than ROQ basis bound {}"
-                .format(priors.maximum_chirp_mass,
-                        roq_maximum_chirp_mass))
+                    .format(priors.maximum_chirp_mass,
+                            roq_maximum_chirp_mass))
 
         if priors.minimum_component_mass is None:
             logger.warning("Unable to check minimum component mass ROQ bounds")
         elif priors.minimum_component_mass < roq_minimum_component_mass:
             raise BilbyROQParamsRangeError(
                 "Prior minimum component mass {} less than ROQ basis bound {}"
-                .format(priors.minimum_component_mass,
-                        roq_minimum_component_mass))
+                    .format(priors.minimum_component_mass,
+                            roq_minimum_component_mass))
 
     def _set_weights(self, linear_matrix, quadratic_matrix):
         """
@@ -335,10 +335,10 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
             ifft = np.fft.ifft
         earth_light_crossing_time = 2 * radius_of_earth / speed_of_light + 5 * time_space
         start_idx = max(0, int(np.floor((self.priors['{}_time'.format(self.time_reference)].minimum -
-                        earth_light_crossing_time - self.interferometers.start_time) / time_space)))
+                                         earth_light_crossing_time - self.interferometers.start_time) / time_space)))
         end_idx = min(number_of_time_samples - 1, int(np.ceil((
-                      self.priors['{}_time'.format(self.time_reference)].maximum + earth_light_crossing_time -
-                      self.interferometers.start_time) / time_space)))
+                                                                      self.priors['{}_time'.format(self.time_reference)].maximum + earth_light_crossing_time -
+                                                                      self.interferometers.start_time) / time_space)))
         self.weights['time_samples'] = np.arange(start_idx, end_idx + 1) * time_space
         logger.info("Using {} ROQ time samples".format(len(self.weights['time_samples'])))
 
@@ -376,7 +376,7 @@ class ROQGravitationalWaveTransient(GravitationalWaveTransient):
             self.weights[ifo.name + '_linear'] = \
                 np.zeros((len(self.weights['time_samples']), linear_matrix.shape[1]), dtype=complex)
             data_over_psd = ifo.frequency_domain_strain[ifo.frequency_mask][ifo_idxs] / \
-                ifo.power_spectral_density_array[ifo.frequency_mask][ifo_idxs]
+                            ifo.power_spectral_density_array[ifo.frequency_mask][ifo_idxs]
             nonzero_idxs = ifo_idxs + int(ifo.frequency_array[ifo.frequency_mask][0] * self.interferometers.duration)
             for i, basis_element in enumerate(linear_matrix[roq_idxs].T):
                 ifft_input[nonzero_idxs] = data_over_psd * np.conj(basis_element)
