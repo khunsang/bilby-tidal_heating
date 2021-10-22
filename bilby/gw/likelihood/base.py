@@ -248,6 +248,8 @@ class GravitationalWaveTransient(Likelihood):
         d_inner_h_array = None
         optimal_snr_squared_array = None
 
+        normalization = 4 / self.waveform_generator.duration
+
         if self.time_marginalization and self.calibration_marginalization:
 
             d_inner_h_integrand = np.tile(
@@ -256,32 +258,40 @@ class GravitationalWaveTransient(Likelihood):
 
             d_inner_h_integrand[_mask] *= self.calibration_draws[interferometer.name].T
 
-            d_inner_h_array = \
-                4 / self.waveform_generator.duration * np.fft.fft(
-                    d_inner_h_integrand[0:-1], axis=0).T
+            d_inner_h_array = 4 / self.waveform_generator.duration * np.fft.fft(
+                d_inner_h_integrand[0:-1], axis=0
+            ).T
 
-            optimal_snr_squared_integrand = 4. / self.waveform_generator.duration * \
-                                            np.abs(signal)**2 / interferometer.power_spectral_density_array
-            optimal_snr_squared_array = np.dot(optimal_snr_squared_integrand[_mask],
-                                               self.calibration_abs_draws[interferometer.name].T)
+            optimal_snr_squared_integrand = (
+                normalization * np.abs(signal)**2 / interferometer.power_spectral_density_array
+            )
+            optimal_snr_squared_array = np.dot(
+                optimal_snr_squared_integrand[_mask],
+                self.calibration_abs_draws[interferometer.name].T
+            )
 
         elif self.time_marginalization and not self.calibration_marginalization:
-            d_inner_h_array = \
-                4 / self.waveform_generator.duration * np.fft.fft(
-                    signal[0:-1] *
-                    interferometer.frequency_domain_strain.conjugate()[0:-1] /
-                    interferometer.power_spectral_density_array[0:-1])
+            d_inner_h_array = normalization * np.fft.fft(
+                signal[0:-1]
+                * interferometer.frequency_domain_strain.conjugate()[0:-1]
+                / interferometer.power_spectral_density_array[0:-1]
+            )
 
         elif self.calibration_marginalization and ('recalib_index' not in self.parameters):
-            d_inner_h_integrand = 4. / self.waveform_generator.duration * \
-                                  interferometer.frequency_domain_strain.conjugate() * signal / \
-                                  interferometer.power_spectral_density_array
+            d_inner_h_integrand = (
+                normalization *
+                interferometer.frequency_domain_strain.conjugate() * signal
+                / interferometer.power_spectral_density_array
+            )
             d_inner_h_array = np.dot(d_inner_h_integrand[_mask], self.calibration_draws[interferometer.name].T)
 
-            optimal_snr_squared_integrand = 4. / self.waveform_generator.duration * \
-                                            np.abs(signal)**2 / interferometer.power_spectral_density_array
-            optimal_snr_squared_array = np.dot(optimal_snr_squared_integrand[_mask],
-                                               self.calibration_abs_draws[interferometer.name].T)
+            optimal_snr_squared_integrand = (
+                normalization * np.abs(signal)**2 / interferometer.power_spectral_density_array
+            )
+            optimal_snr_squared_array = np.dot(
+                optimal_snr_squared_integrand[_mask],
+                self.calibration_abs_draws[interferometer.name].T
+            )
 
         return self._CalculatedSNRs(
             d_inner_h=d_inner_h, optimal_snr_squared=optimal_snr_squared,
@@ -293,8 +303,8 @@ class GravitationalWaveTransient(Likelihood):
     def _check_marginalized_prior_is_set(self, key):
         if key in self.priors and self.priors[key].is_fixed:
             raise ValueError(
-                "Cannot use marginalized likelihood for {}: prior is fixed"
-                    .format(key))
+                "Cannot use marginalized likelihood for {}: prior is fixed".format(key)
+            )
         if key not in self.priors or not isinstance(
                 self.priors[key], Prior):
             logger.warning(
@@ -567,8 +577,7 @@ class GravitationalWaveTransient(Likelihood):
             time_log_like = (d_inner_h.real - h_inner_h.real / 2)
 
         time_prior_array = self.priors['geocent_time'].prob(times)
-        time_post = (
-                np.exp(time_log_like - max(time_log_like)) * time_prior_array)
+        time_post = np.exp(time_log_like - max(time_log_like)) * time_prior_array
 
         keep = (time_post > max(time_post) / 1000)
         if sum(keep) < 3:
@@ -608,18 +617,15 @@ class GravitationalWaveTransient(Likelihood):
         d_inner_h, h_inner_h = self._calculate_inner_products(signal_polarizations)
 
         d_inner_h_dist = (
-                d_inner_h * self.parameters['luminosity_distance'] /
-                self._distance_array)
+            d_inner_h * self.parameters['luminosity_distance'] / self._distance_array
+        )
 
         h_inner_h_dist = (
-                h_inner_h * self.parameters['luminosity_distance']**2 /
-                self._distance_array**2)
+            h_inner_h * self.parameters['luminosity_distance']**2 / self._distance_array**2
+        )
 
         if self.phase_marginalization:
-            distance_log_like = (
-                    ln_i0(abs(d_inner_h_dist)) -
-                    h_inner_h_dist.real / 2
-            )
+            distance_log_like = ln_i0(abs(d_inner_h_dist)) - h_inner_h_dist.real / 2
         else:
             distance_log_like = (d_inner_h_dist.real - h_inner_h_dist.real / 2)
 
@@ -1052,10 +1058,8 @@ class GravitationalWaveTransient(Likelihood):
             ra = self.parameters["ra"]
             dec = self.parameters["dec"]
         if "geocent" not in self.time_reference:
-            geocent_time = (
-                    time - self.reference_ifo.time_delay_from_geocenter(
+            geocent_time = time - self.reference_ifo.time_delay_from_geocenter(
                 ra=ra, dec=dec, time=time
-            )
             )
         else:
             geocent_time = self.parameters["geocent_time"]
