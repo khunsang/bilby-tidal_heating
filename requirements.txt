@@ -1,12 +1,18 @@
-future
-dynesty
+dynesty<1.1
 emcee
 corner
-numpy>=1.9
-matplotlib>=2.0
-scipy>=0.16
+numpy
+matplotlib>=2.1
+scipy>=1.5
 pandas
 mock
 dill
 tqdm
+<<<<<<< HEAD
 gwpy
+=======
+h5py
+tables
+astropy
+attrs
+>>>>>>> d51d51947f1396084ffc772fc8975b6ef98a60fc

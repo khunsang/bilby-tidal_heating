@@ -24,8 +24,8 @@ class Pymultinest(NestedSampler):
     for that class for further help. Under Other Parameters, we list commonly
     used kwargs and the bilby defaults.
 
-    Other Parameters
-    ----------------
+    Parameters
+    ==========
     npoints: int
         The number of live points, note this can also equivalently be given as
         one of [nlive, nlives, n_live_points]
@@ -129,9 +129,9 @@ class Pymultinest(NestedSampler):
 
     def _apply_multinest_boundaries(self):
         if self.kwargs["wrapped_params"] is None:
-            self.kwargs["wrapped_params"] = []
-            for param, value in self.priors.items():
-                if value.boundary == "periodic":
+            self.kwargs["wrapped_params"] = list()
+            for param in self.search_parameter_keys:
+                if self.priors[param].boundary == "periodic":
                     self.kwargs["wrapped_params"].append(1)
                 else:
                     self.kwargs["wrapped_params"].append(0)
@@ -237,6 +237,7 @@ class Pymultinest(NestedSampler):
         self.calc_likelihood_count()
         self.result.outputfiles_basename = self.outputfiles_basename
         self.result.sampling_time = datetime.timedelta(seconds=self.total_sampling_time)
+        self.result.nested_samples = self._nested_samples
         return self.result
 
     def _check_and_load_sampling_time_file(self):
@@ -259,3 +260,27 @@ class Pymultinest(NestedSampler):
         if self.use_temporary_directory:
             self._move_temporary_directory_to_proper_path()
             self.kwargs["outputfiles_basename"] = self.outputfiles_basename
+
+    @property
+    def _nested_samples(self):
+        """
+        Extract nested samples from the pymultinest files.
+        This requires combining the "dead" points from `ev.dat` and the "live"
+        points from `phys_live.points`.
+        The prior volume associated with the current live points is the simple
+        estimate of `remaining_prior_volume / N`.
+        """
+        import pandas as pd
+        dir_ = self.kwargs["outputfiles_basename"]
+        dead_points = np.genfromtxt(dir_ + "/ev.dat")
+        live_points = np.genfromtxt(dir_ + "/phys_live.points")
+
+        nlive = self.kwargs["n_live_points"]
+        final_log_prior_volume = - len(dead_points) / nlive - np.log(nlive)
+        live_points = np.insert(live_points, -1, final_log_prior_volume, axis=-1)
+
+        nested_samples = pd.DataFrame(
+            np.vstack([dead_points, live_points]).copy(),
+            columns=self.search_parameter_keys + ["log_likelihood", "log_prior_volume", "mode"]
+        )
+        return nested_samples

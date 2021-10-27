@@ -3,28 +3,26 @@ import copy
 
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
-from scipy.integrate import cumtrapz
 from scipy.special import hyp2f1
 from scipy.stats import norm
 
-from ..core.prior import (PriorDict, Uniform, Prior, DeltaFunction, Gaussian,
-                          Interped, Constraint, conditional_prior_factory,
-                          BaseJointPriorDist, JointPrior, JointPriorDistError,
-                          PowerLaw)
+from ..core.prior import (
+    PriorDict, Uniform, Prior, DeltaFunction, Gaussian, Interped, Constraint,
+    conditional_prior_factory, PowerLaw, ConditionalLogUniform,
+    ConditionalPriorDict, ConditionalBasePrior, BaseJointPriorDist, JointPrior,
+    JointPriorDistError,
+)
 from ..core.utils import infer_args_from_method, logger
 from .conversion import (
     convert_to_lal_binary_black_hole_parameters,
     convert_to_lal_binary_neutron_star_parameters, generate_mass_parameters,
     generate_tidal_parameters, fill_from_fixed_priors,
+    generate_all_bbh_parameters,
     chirp_mass_and_mass_ratio_to_total_mass,
     total_mass_and_mass_ratio_to_component_masses)
 from .cosmology import get_cosmology
-
-try:
-    from astropy import cosmology as cosmo, units
-except ImportError:
-    logger.debug("You do not have astropy installed currently. You will"
-                 " not be able to use some of the prebuilt functions.")
+from .source import PARAMETER_SETS
+from .utils import calculate_time_to_merger
 
 
 DEFAULT_PRIOR_DIR = os.path.join(os.path.dirname(__file__), 'prior_files')
@@ -40,7 +38,7 @@ def convert_to_flat_in_component_mass_prior(result, fraction=0.25):
     F(mc, q) -> G(m1, m2) is defined as J := m1^2 / mc
 
     Parameters
-    ----------
+    ==========
     result: bilby.core.result.Result
         The output result complete with priors and posteriors
     fraction: float [0, 1]
@@ -97,6 +95,7 @@ class Cosmological(Interped):
 
     @property
     def _default_args_dict(self):
+        from astropy import units
         return dict(
             redshift=dict(name='redshift', latex_label='$z$', unit=None),
             luminosity_distance=dict(
@@ -106,6 +105,7 @@ class Cosmological(Interped):
 
     def __init__(self, minimum, maximum, cosmology=None, name=None,
                  latex_label=None, unit=None, boundary=None):
+        from astropy import units
         self.cosmology = get_cosmology(cosmology)
         if name not in self._default_args_dict:
             raise ValueError(
@@ -162,7 +162,7 @@ class Cosmological(Interped):
         Set either of the limits for redshift, luminosity, and comoving distances
 
         Parameters
-        ----------
+        ==========
         value: float
             Limit value in current class' parameter
         limit_dict: dict
@@ -170,6 +170,7 @@ class Cosmological(Interped):
         recalculate_array: boolean
             Determines if the distance arrays are recalculated
         """
+        from astropy.cosmology import z_at_value
         cosmology = get_cosmology(self.cosmology)
         limit_dict[self.name] = value
         if self.name == 'redshift':
@@ -181,8 +182,9 @@ class Cosmological(Interped):
             if value == 0:
                 limit_dict['redshift'] = 0
             else:
-                limit_dict['redshift'] = cosmo.z_at_value(
-                    cosmology.luminosity_distance, value * self.unit)
+                limit_dict['redshift'] = z_at_value(
+                    cosmology.luminosity_distance, value * self.unit
+                )
             limit_dict['comoving_distance'] = (
                 cosmology.comoving_distance(limit_dict['redshift']).value
             )
@@ -190,8 +192,9 @@ class Cosmological(Interped):
             if value == 0:
                 limit_dict['redshift'] = 0
             else:
-                limit_dict['redshift'] = cosmo.z_at_value(
-                    cosmology.comoving_distance, value * self.unit)
+                limit_dict['redshift'] = z_at_value(
+                    cosmology.comoving_distance, value * self.unit
+                )
             limit_dict['luminosity_distance'] = (
                 cosmology.luminosity_distance(limit_dict['redshift']).value
             )
@@ -253,8 +256,10 @@ class Cosmological(Interped):
         """
         Get a dictionary containing the arguments needed to reproduce this object.
         """
+        from astropy.cosmology.core import Cosmology
+        from astropy import units
         dict_with_properties = super(Cosmological, self)._repr_dict
-        if isinstance(dict_with_properties['cosmology'], cosmo.core.Cosmology):
+        if isinstance(dict_with_properties['cosmology'], Cosmology):
             if dict_with_properties['cosmology'].name is not None:
                 dict_with_properties['cosmology'] = dict_with_properties['cosmology'].name
         if isinstance(dict_with_properties['unit'], units.Unit):
@@ -298,7 +303,7 @@ class UniformInComponentsChirpMass(PowerLaw):
         prior is uniform in component masses.
 
         Parameters
-        ----------
+        ==========
         minimum : float
             The minimum of chirp mass
         maximum : float
@@ -339,7 +344,7 @@ class UniformInComponentsMassRatio(Prior):
         prior is uniform in component masses.
 
         Parameters
-        ----------
+        ==========
         minimum : float
             The minimum of mass ratio
         maximum : float
@@ -366,12 +371,21 @@ class UniformInComponentsMassRatio(Prior):
         return (self._integral(val) - self._integral(self.minimum)) / self.norm
 
     def rescale(self, val):
-        self.test_valid_for_rescaling(val)
-        return self.icdf(val)
+        resc = self.icdf(val)
+        if resc.ndim == 0:
+            return resc.item()
+        else:
+            return resc
 
     def prob(self, val):
         in_prior = (val >= self.minimum) & (val <= self.maximum)
-        return (1. + val)**(2. / 5.) / (val**(6. / 5.)) / self.norm * in_prior
+        with np.errstate(invalid="ignore"):
+            prob = (1. + val)**(2. / 5.) / (val**(6. / 5.)) / self.norm * in_prior
+        return prob
+
+    def ln_prob(self, val):
+        with np.errstate(divide="ignore"):
+            return np.log(self.prob(val))
 
 
 class AlignedSpin(Interped):
@@ -390,7 +404,7 @@ class AlignedSpin(Interped):
         This is an extension of e.g., (A7) of https://arxiv.org/abs/1805.10457.
 
         Parameters
-        ----------
+        ==========
         a_prior: Prior
             Prior distribution for spin magnitude
         z_prior: Prior
@@ -415,6 +429,144 @@ class AlignedSpin(Interped):
                                           latex_label=latex_label, unit=unit,
                                           boundary=boundary, minimum=minimum,
                                           maximum=maximum)
+
+
+class ConditionalChiUniformSpinMagnitude(ConditionalLogUniform):
+    r"""
+    This prior characterizes the conditional prior on the spin magnitude given
+    the aligned component of the spin  such that the marginal prior is uniform
+    if the distribution of spin orientations is isotropic.
+
+    .. math::
+        p(a) &= \frac{1}{a_{\max}}
+        p(\chi) &= - \frac{1}{2 a_{\max}} \ln(|\chi|)
+        p(a | \chi) &\propto \frac{1}{a}
+    """
+
+    def __init__(self, minimum, maximum, name, latex_label=None, unit=None, boundary=None):
+        super(ConditionalChiUniformSpinMagnitude, self).__init__(
+            minimum=minimum, maximum=maximum, name=name, latex_label=latex_label, unit=unit, boundary=boundary,
+            condition_func=self._condition_function)
+        self._required_variables = [name.replace("a", "chi")]
+        self.__class__.__name__ = "ConditionalChiUniformSpinMagnitude"
+        self.__class__.__qualname__ = "ConditionalChiUniformSpinMagnitude"
+
+    def _condition_function(self, reference_params, **kwargs):
+        return dict(minimum=np.abs(kwargs[self._required_variables[0]]), maximum=reference_params["maximum"])
+
+    def __repr__(self):
+        return Prior.__repr__(self)
+
+    def get_instantiation_dict(self):
+        instantiation_dict = Prior.get_instantiation_dict(self)
+        for key, value in self.reference_params.items():
+            if key in instantiation_dict:
+                instantiation_dict[key] = value
+        return instantiation_dict
+
+
+class ConditionalChiInPlane(ConditionalBasePrior):
+    r"""
+    This prior characterizes the conditional prior on the in-plane spin magnitude
+    given the aligned component of the spin  such that the marginal prior is uniform
+    if the distribution of spin orientations is isotropic.
+
+    .. math::
+        p(a) &= \frac{1}{a_{\max}}
+        p(\chi_\perp) = 2 N \chi_\perp / (\chi ** 2 + \chi_\perp ** 2)
+        N^{-1} &= 2 \ln(a_\max / |\chi|)
+    """
+
+    def __init__(self, minimum, maximum, name, latex_label=None, unit=None, boundary=None):
+        super(ConditionalChiInPlane, self).__init__(
+            minimum=minimum, maximum=maximum,
+            name=name, latex_label=latex_label,
+            unit=unit, boundary=boundary,
+            condition_func=self._condition_function
+        )
+        self._required_variables = [name[:5]]
+        self._reference_maximum = maximum
+        self.__class__.__name__ = "ConditionalChiInPlane"
+        self.__class__.__qualname__ = "ConditionalChiInPlane"
+
+    def prob(self, val, **required_variables):
+        self.update_conditions(**required_variables)
+        chi_aligned = abs(required_variables[self._required_variables[0]])
+        return (
+            (val >= self.minimum) * (val <= self.maximum)
+            * val
+            / (chi_aligned ** 2 + val ** 2)
+            / np.log(self._reference_maximum / chi_aligned)
+        )
+
+    def ln_prob(self, val, **required_variables):
+        with np.errstate(divide="ignore"):
+            return np.log(self.prob(val, **required_variables))
+
+    def cdf(self, val, **required_variables):
+        r"""
+        .. math::
+            \text{CDF}(\chi_\per) = N ln(1 + (\chi_\perp / \chi) ** 2)
+
+        Parameters
+        ----------
+        val: (float, array-like)
+            The value at which to evaluate the CDF
+        required_variables: dict
+            A dictionary containing the aligned component of the spin
+
+        Returns
+        -------
+        (float, array-like)
+            The value of the CDF
+
+        """
+        self.update_conditions(**required_variables)
+        chi_aligned = abs(required_variables[self._required_variables[0]])
+        return np.maximum(np.minimum(
+            (val >= self.minimum) * (val <= self.maximum)
+            * np.log(1 + (val / chi_aligned) ** 2)
+            / 2 / np.log(self._reference_maximum / chi_aligned)
+            , 1
+        ), 0)
+
+    def rescale(self, val, **required_variables):
+        r"""
+        .. math::
+            \text{PPF}(\chi_\perp) = ((a_\max / \chi) ** (2x) - 1) ** 0.5 * \chi
+
+        Parameters
+        ----------
+        val: (float, array-like)
+            The value to rescale
+        required_variables: dict
+            Dictionary containing the aligned spin component
+
+        Returns
+        -------
+        (float, array-like)
+            The in-plane component of the spin
+        """
+        self.update_conditions(**required_variables)
+        chi_aligned = abs(required_variables[self._required_variables[0]])
+        return chi_aligned * ((self._reference_maximum / chi_aligned) ** (2 * val) - 1) ** 0.5
+
+    def _condition_function(self, reference_params, **kwargs):
+        with np.errstate(invalid="ignore"):
+            maximum = np.sqrt(
+                self._reference_maximum ** 2 - kwargs[self._required_variables[0]] ** 2
+            )
+        return dict(minimum=0, maximum=maximum)
+
+    def __repr__(self):
+        return Prior.__repr__(self)
+
+    def get_instantiation_dict(self):
+        instantiation_dict = Prior.get_instantiation_dict(self)
+        for key, value in self.reference_params.items():
+            if key in instantiation_dict:
+                instantiation_dict[key] = value
+        return instantiation_dict
 
 
 class EOSCheck(Constraint):
@@ -443,7 +595,7 @@ class EOSCheck(Constraint):
         return result
 
 
-class CBCPriorDict(PriorDict):
+class CBCPriorDict(ConditionalPriorDict):
     @property
     def minimum_chirp_mass(self):
         mass_1 = None
@@ -496,6 +648,79 @@ class CBCPriorDict(PriorDict):
             logger.warning("Unable to determine minimum component mass")
             return None
 
+    def is_nonempty_intersection(self, pset):
+        """ Check if keys in self exist in the PARAMETER_SETS pset """
+        if len(PARAMETER_SETS[pset].intersection(self.non_fixed_keys)) > 0:
+            return True
+        else:
+            return False
+
+    @property
+    def spin(self):
+        """ Return true if priors include any spin parameters """
+        return self.is_nonempty_intersection("spin")
+
+    @property
+    def precession(self):
+        """ Return true if priors include any precession parameters """
+        return self.is_nonempty_intersection("precession_only")
+
+    @property
+    def intrinsic(self):
+        """ Return true if priors include any intrinsic parameters """
+        return self.is_nonempty_intersection("intrinsic")
+
+    @property
+    def extrinsic(self):
+        """ Return true if priors include any extrinsic parameters """
+        return self.is_nonempty_intersection("extrinsic")
+
+    @property
+    def mass(self):
+        """ Return true if priors include any mass parameters """
+        return self.is_nonempty_intersection("mass")
+
+    @property
+    def phase(self):
+        """ Return true if priors include phase parameters """
+        return self.is_nonempty_intersection("phase")
+
+    def validate_prior(self, duration, minimum_frequency, N=1000, error=True, warning=False):
+        """ Validate the prior is suitable for use
+
+        Parameters
+        ==========
+        duration: float
+            The data duration in seconds
+        minimum_frequency: float
+            The minimum frequency in Hz of the analysis
+        N: int
+            The number of samples to draw when checking
+        """
+        samples = self.sample(N)
+        samples = generate_all_bbh_parameters(samples)
+        deltaT = np.array([
+            calculate_time_to_merger(
+                frequency=minimum_frequency,
+                mass_1=mass_1,
+                mass_2=mass_2,
+            )
+            for (mass_1, mass_2) in zip(samples["mass_1"], samples["mass_2"])
+        ])
+        if np.all(deltaT < duration):
+            return True
+        if warning:
+            logger.warning(
+                "Prior contains regions of parameter space in which the signal"
+                f" is longer than the data duration {duration}s"
+            )
+            return False
+        if error:
+            raise ValueError(
+                "Prior contains regions of parameter space in which the signal"
+                f" is longer than the data duration {duration}s"
+            )
+
 
 class BBHPriorDict(CBCPriorDict):
     def __init__(self, dictionary=None, filename=None, aligned_spin=False,
@@ -503,7 +728,7 @@ class BBHPriorDict(CBCPriorDict):
         """ Initialises a Prior set for Binary Black holes
 
         Parameters
-        ----------
+        ==========
         dictionary: dict, optional
             See superclass
         filename: str, optional
@@ -540,12 +765,12 @@ class BBHPriorDict(CBCPriorDict):
         - source-frame parameters
 
         Parameters
-        ----------
+        ==========
         sample: dict
             Dictionary to convert
 
         Returns
-        -------
+        =======
         sample: dict
             Same as input
         """
@@ -561,14 +786,14 @@ class BBHPriorDict(CBCPriorDict):
         Already existing keys return True.
 
         Parameters
-        ----------
+        ==========
         key: str
             The key to test.
         disable_logging: bool, optional
             Disable logging in this function call. Default is False.
 
-        Return
-        ------
+        Returns
+        ======
         redundant: bool
             Whether the key is redundant or not
         """
@@ -610,7 +835,7 @@ class BNSPriorDict(CBCPriorDict):
         """ Initialises a Prior set for Binary Neutron Stars
 
         Parameters
-        ----------
+        ==========
         dictionary: dict, optional
             See superclass
         filename: str, optional
@@ -647,12 +872,12 @@ class BNSPriorDict(CBCPriorDict):
         - source-frame parameters
 
         Parameters
-        ----------
+        ==========
         sample: dict
             Dictionary to convert
 
         Returns
-        -------
+        =======
         sample: dict
             Same as input
         """
@@ -690,6 +915,11 @@ class BNSPriorDict(CBCPriorDict):
                 redundant = True
         return redundant
 
+    @property
+    def tidal(self):
+        """ Return true if priors include phase parameters """
+        return self.is_nonempty_intersection("tidal")
+
 
 Prior._default_latex_labels = {
     'mass_1': '$m_1$',
@@ -716,12 +946,16 @@ Prior._default_latex_labels = {
     'psi': '$\psi$',
     'phase': '$\phi$',
     'geocent_time': '$t_c$',
+    'time_jitter': '$t_j$',
     'lambda_1': '$\\Lambda_1$',
     'lambda_2': '$\\Lambda_2$',
     'lambda_tilde': '$\\tilde{\\Lambda}$',
     'delta_lambda_tilde': '$\\delta\\tilde{\\Lambda}$',
     'chi_1': '$\\chi_1$',
-    'chi_2': '$\\chi_2$'}
+    'chi_2': '$\\chi_2$',
+    'chi_1_in_plane': '$\\chi_{1, \perp}$',
+    'chi_2_in_plane': '$\\chi_{2, \perp}$',
+}
 
 
 class CalibrationPriorDict(PriorDict):
@@ -730,7 +964,7 @@ class CalibrationPriorDict(PriorDict):
         """ Initialises a Prior set for Binary Black holes
 
         Parameters
-        ----------
+        ==========
         dictionary: dict, optional
             See superclass
         filename: str, optional
@@ -747,7 +981,7 @@ class CalibrationPriorDict(PriorDict):
         possible.
 
         Parameters
-        ----------
+        ==========
         outdir: str
             Output directory.
         label: str
@@ -761,16 +995,20 @@ class CalibrationPriorDict(PriorDict):
 
     @staticmethod
     def from_envelope_file(envelope_file, minimum_frequency,
-                           maximum_frequency, n_nodes, label):
+                           maximum_frequency, n_nodes, label,
+                           boundary="reflective"):
         """
         Load in the calibration envelope.
 
-        This is a text file with columns:
+        This is a text file with columns
+
+        ::
+
             frequency median-amplitude median-phase -1-sigma-amplitude
             -1-sigma-phase +1-sigma-amplitude +1-sigma-phase
 
         Parameters
-        ----------
+        ==========
         envelope_file: str
             Name of file to read in.
         minimum_frequency: float
@@ -780,10 +1018,12 @@ class CalibrationPriorDict(PriorDict):
         n_nodes: int
             Number of nodes for the spline.
         label: str
-            Label for the names of the parameters, e.g., recalib_H1_
+            Label for the names of the parameters, e.g., `recalib_H1_`
+        boundary: None, 'reflective', 'periodic'
+            The type of prior boundary to assign
 
         Returns
-        -------
+        =======
         prior: PriorDict
             Priors for the relevant parameters.
             This includes the frequencies of the nodes which are _not_ sampled.
@@ -814,14 +1054,14 @@ class CalibrationPriorDict(PriorDict):
             prior[name] = Gaussian(mu=amplitude_mean_nodes[ii],
                                    sigma=amplitude_sigma_nodes[ii],
                                    name=name, latex_label=latex_label,
-                                   boundary='reflective')
+                                   boundary=boundary)
         for ii in range(n_nodes):
             name = "recalib_{}_phase_{}".format(label, ii)
             latex_label = "$\\phi^{}_{}$".format(label, ii)
             prior[name] = Gaussian(mu=phase_mean_nodes[ii],
                                    sigma=phase_sigma_nodes[ii],
                                    name=name, latex_label=latex_label,
-                                   boundary='reflective')
+                                   boundary=boundary)
         for ii in range(n_nodes):
             name = "recalib_{}_frequency_{}".format(label, ii)
             latex_label = "$f^{}_{}$".format(label, ii)
@@ -840,7 +1080,7 @@ class CalibrationPriorDict(PriorDict):
         This assumes Gaussian fluctuations about 0.
 
         Parameters
-        ----------
+        ==========
         amplitude_sigma: float
             Uncertainty in the amplitude.
         phase_sigma: float
@@ -852,10 +1092,10 @@ class CalibrationPriorDict(PriorDict):
         n_nodes: int
             Number of nodes for the spline.
         label: str
-            Label for the names of the parameters, e.g., recalib_H1_
+            Label for the names of the parameters, e.g., `recalib_H1_`
 
         Returns
-        -------
+        =======
         prior: PriorDict
             Priors for the relevant parameters.
             This includes the frequencies of the nodes which are _not_ sampled.
@@ -909,10 +1149,10 @@ class HealPixMapPriorDist(BaseJointPriorDist):
     distance distribution along a given line of sight.
 
     Parameters
-    ----------
+    ==========
 
     hp_file : file path to .fits file
-        .fits file that containes the 2D or 3D Healpix Map
+        .fits file that contains the 2D or 3D Healpix Map
     names : list (optional)
         list of names of parameters included in the JointPriorDist, defaults to ['ra', 'dec']
     bounds : dict or list (optional)
@@ -920,7 +1160,7 @@ class HealPixMapPriorDist(BaseJointPriorDist):
         if this is for a 3D map
 
     Returns
-    -------
+    =======
 
     PriorDist : `bilby.gw.prior.HealPixMapPriorDist`
         A JointPriorDist object to store the joint prior distribution according to passed healpix map
@@ -973,6 +1213,7 @@ class HealPixMapPriorDist(BaseJointPriorDist):
         """
         Method that builds the inverse cdf of the P(pixel) distribution for rescaling
         """
+        from scipy.integrate import cumtrapz
         yy = self._all_interped(self.pix_xx)
         yy /= np.trapz(yy, self.pix_xx)
         YY = cumtrapz(yy, self.pix_xx, initial=0)
@@ -996,14 +1237,14 @@ class HealPixMapPriorDist(BaseJointPriorDist):
         two values (ra, dec) or 3 (ra, dec, dist) if distance is included
 
         Parameters
-        ----------
+        ==========
         samp : float, int
             must take in single value for pixel on unitcube to recale onto ra, dec (distance), for the map Prior
         kwargs : dict
             kwargs are all passed to _rescale() method
 
         Returns
-        -------
+        =======
         rescaled_sample : array_like
             sample to rescale onto the prior
         """
@@ -1033,12 +1274,12 @@ class HealPixMapPriorDist(BaseJointPriorDist):
         given pixel or line of sight.
 
         Parameters
-        ----------
+        ==========
         pix_idx : int
-            pixel index value to create the distribtuion for
+            pixel index value to create the distribution for
 
         Returns
-        -------
+        =======
         None : None
             just updates these functions at new pixel values
         """
@@ -1063,12 +1304,12 @@ class HealPixMapPriorDist(BaseJointPriorDist):
         static method to check if array is properlly normalized and if not to normalize it.
 
         Parameters
-        ----------
+        ==========
         array : array_like
             input array we want to renormalize if not already normalized
 
         Returns
-        -------
+        =======
         normed_array : array_like
             returns input array normalized
         """
@@ -1085,14 +1326,14 @@ class HealPixMapPriorDist(BaseJointPriorDist):
         given line of sight
 
         Parameters
-        ----------
+        ==========
         size : int
             number of samples we want to draw
         kwargs : dict
             kwargs are all passed to be used
 
         Returns
-        -------
+        =======
         sample : array_like
             sample of ra, and dec (and distance if 3D=True)
         """
@@ -1118,13 +1359,13 @@ class HealPixMapPriorDist(BaseJointPriorDist):
         the bounds
 
         Parameters
-        ----------
+        ==========
 
         pix : int
             integer for pixel to draw a distance from
 
         Returns
-        -------
+        =======
         dist : float
             sample drawn from the distance distribution at set pixel index
         """
@@ -1142,7 +1383,7 @@ class HealPixMapPriorDist(BaseJointPriorDist):
         Recursive function to uniformly draw ra, and dec values that are located in the given pixel
 
         Parameters
-        ----------
+        ==========
         ra : float, int
             value drawn for rightascension
         dec : float, int
@@ -1151,7 +1392,7 @@ class HealPixMapPriorDist(BaseJointPriorDist):
             pixel index for given pixel we want to get ra, and dec from
 
         Returns
-        -------
+        =======
         ra_dec : tuple
             this returns a tuple of ra, and dec sampled uniformly that are in the pixel given
         """
@@ -1169,7 +1410,7 @@ class HealPixMapPriorDist(BaseJointPriorDist):
         Method that checks if given rightacension and declination values are within the given pixel index and the bounds
 
         Parameters
-        ----------
+        ==========
         ra : float, int
             rightascension value to check
         dec : float, int
@@ -1178,7 +1419,7 @@ class HealPixMapPriorDist(BaseJointPriorDist):
             index for pixel we want to check in
 
         Returns
-        -------
+        =======
         bool :
             returns True if values inside pixel, False if not
         """
@@ -1194,7 +1435,7 @@ class HealPixMapPriorDist(BaseJointPriorDist):
         Overwrites the _lnprob method of BaseJoint Prior
 
         Parameters
-        ----------
+        ==========
         samp : array_like
             samples of ra, dec to evaluate the lnprob at
         lnprob : array_like
@@ -1203,7 +1444,7 @@ class HealPixMapPriorDist(BaseJointPriorDist):
             boolean array that flags samples that are out of the given bounds
 
         Returns
-        -------
+        =======
         lnprob : array_like
             lnprob values at each sample
         """
@@ -1237,7 +1478,7 @@ class HealPixMapPriorDist(BaseJointPriorDist):
             elif isinstance(self.__dict__[key], (np.ndarray, list)):
                 thisarr = np.asarray(self.__dict__[key])
                 otherarr = np.asarray(other.__dict__[key])
-                if thisarr.dtype == np.float and otherarr.dtype == np.float:
+                if thisarr.dtype == float and otherarr.dtype == float:
                     fin1 = np.isfinite(np.asarray(self.__dict__[key]))
                     fin2 = np.isfinite(np.asarray(other.__dict__[key]))
                     if not np.array_equal(fin1, fin2):
