@@ -1,5 +1,4 @@
 import numpy as np
-import lal
 from ..core import utils
 from ..core.utils import logger
 from .conversion import bilby_to_lalsimulation_spins
@@ -47,6 +46,7 @@ def phase_TH(
     """ Phase correction due to tidal heating
         Added spin-orbit interaction term and corrected positive-negative sign
     """
+    import lal
     m = mass_1 + mass_2
     eta = mass_1 * mass_2 / m**2
     minIndx = int(start_frequency / delta_frequency)
@@ -75,6 +75,7 @@ def phase_TH(
 
 def ISCO(m1, m2):
     "masses in solar mass unit"
+    import lal
     return 1.0 / (6.0 * np.sqrt(6.0) * np.pi * (m1 + m2) * lal.MTSUN_SI)
 
 
