@@ -1,5 +1,5 @@
 import numpy as np
-
+import lal
 from ..core import utils
 from ..core.utils import logger
 from .conversion import bilby_to_lalsimulation_spins
