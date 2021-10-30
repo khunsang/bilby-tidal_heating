@@ -490,17 +490,16 @@ def _base_lal_cbc_fd_waveform(
     =======
     dict: A dictionary with the plus and cross polarisation strain modes
     """
-<<<<<<< HEAD
+    import lal
+    import lalsimulation as lalsim
+
+    #waveform_approximant = waveform_kwargs['waveform_approximant']
+    
     if waveform_kwargs['waveform_approximant'] == "HeatedTaylorF2":
         waveform_approximant = "TaylorF2"
     else:
         waveform_approximant = waveform_kwargs['waveform_approximant']
-=======
-    import lal
-    import lalsimulation as lalsim
 
-    waveform_approximant = waveform_kwargs['waveform_approximant']
->>>>>>> d51d51947f1396084ffc772fc8975b6ef98a60fc
     reference_frequency = waveform_kwargs['reference_frequency']
     minimum_frequency = waveform_kwargs['minimum_frequency']
     maximum_frequency = waveform_kwargs['maximum_frequency']
