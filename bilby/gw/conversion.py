@@ -267,7 +267,7 @@ def convert_to_lal_binary_black_hole_parameters(parameters):
     for angle in ['tilt_1', 'tilt_2', 'theta_jn']:
         cos_angle = str('cos_' + angle)
         if cos_angle in converted_parameters.keys():
-            converted_parameters[angle] = np.arccos(converted_parameters[cos_angle])
+            converted_parameters[angle] = np.arccos(min(1, max(-1,converted_parameters[cos_angle])))
 
     if "delta_phase" in original_keys:
         with np.errstate(invalid="ignore"):
